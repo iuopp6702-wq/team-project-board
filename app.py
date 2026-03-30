@@ -27,32 +27,36 @@ def load_data():
         df.to_csv(DATA_FILE, index=False)
         return df
 
-# 3. 표를 이미지로 변환하는 함수 (투명 배경 및 여백 최소화)
+# 3. 표를 이미지로 변환하는 함수 (품질 상향 및 폰트 수정)
 def df_to_image(df):
-    # 행/열 개수에 따라 동적으로 크기 조절
     num_rows, num_cols = df.shape
-    fig, ax = plt.subplots(figsize=(num_cols * 2, (num_rows + 1) * 0.6))
+    # 이미지 크기 확대 (뭉침 방지)
+    fig, ax = plt.subplots(figsize=(num_cols * 2.5, (num_rows + 1) * 0.8))
     ax.axis('off')
     
-    # 한글 폰트 설정
-    plt.rcParams['font.family'] = 'Malgun Gothic'
+    # 서버 환경(리눅스)과 로컬(윈도우) 한글 폰트 대응
+    import matplotlib.font_manager as fm
+    font_list = [f.name for f in fm.fontManager.ttflist]
+    if 'NanumGothic' in font_list:
+        plt.rcParams['font.family'] = 'NanumGothic'
+    elif 'Malgun Gothic' in font_list:
+        plt.rcParams['font.family'] = 'Malgun Gothic'
     
     table = ax.table(cellText=df.values, colLabels=df.columns, loc='center', cellLoc='center')
     table.auto_set_font_size(False)
-    table.set_fontsize(12)
-    table.scale(1, 2) # 셀 높이 조절
+    table.set_fontsize(14) # 글자 크기 키움
+    table.scale(1, 2.5) # 셀 높이 넉넉하게
     
     # 헤더 및 셀 스타일링
     for (row, col), cell in table.get_celld().items():
         if row == 0:
             cell.set_text_props(weight='bold', color='white')
             cell.set_facecolor('#4c78a8')
-        # 테두리 색상 설정
-        cell.set_edgecolor('#dddddd')
+        cell.set_edgecolor('#333333') # 테두리 더 진하게
     
     buf = io.BytesIO()
-    # transparent=True로 배경 투명화, bbox_inches='tight'로 여백 제거
-    plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.05, dpi=300, transparent=True)
+    # DPI 400으로 높여서 아주 선명하게 저장
+    plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.1, dpi=400, transparent=True)
     plt.close(fig)
     buf.seek(0)
     return buf
@@ -98,9 +102,21 @@ with st.expander("⚙️ 표 항목(컬럼) 이름 수정하기"):
         st.success("항목 이름이 변경되었습니다!")
         st.rerun()
 
-# 데이터 편집기
+# 데이터 편집기 (모바일에서 이름이 최대한 보이도록 너비 고정)
 st.subheader(f"📊 {year}년 {month}월 {week} 실시간 공유 표")
-edited_df = st.data_editor(df, num_rows="fixed", width="stretch")
+
+# 이름 컬럼을 최대한 고정(Pinned)처럼 보이게 너비 설정
+column_config = {
+    df.columns[0]: st.column_config.TextColumn(df.columns[0], width="small", required=True),
+    df.columns[-1]: st.column_config.NumberColumn(df.columns[-1], min_value=0, max_value=100, format="%d%%")
+}
+
+edited_df = st.data_editor(
+    df, 
+    num_rows="fixed", 
+    width="stretch", 
+    column_config=column_config
+)
 
 # 저장 및 이미지/복사 레이아웃
 col1, col2, col3 = st.columns([1, 1, 1])
