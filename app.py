@@ -26,39 +26,45 @@ def load_data():
         df = pd.DataFrame(data)
         df.to_csv(DATA_FILE, index=False)
         return df
+import textwrap
 
-# 3. 표를 이미지로 변환하는 함수 (품질 상향 및 폰트 수정)
+# 3. 표를 이미지로 변환하는 함수 (줄바꿈 기능 추가)
 def df_to_image(df):
-    num_rows, num_cols = df.shape
-    fig, ax = plt.subplots(figsize=(num_cols * 2.5, (num_rows + 1) * 0.8))
+    # 데이터 내의 긴 텍스트 줄바꿈 처리
+    wrapped_df = df.copy()
+    for col in wrapped_df.columns:
+        wrapped_df[col] = wrapped_df[col].apply(lambda x: "\n".join(textwrap.wrap(str(x), width=15)) if len(str(x)) > 15 else x)
+
+    num_rows, num_cols = wrapped_df.shape
+    # 줄바꿈으로 인해 길어질 수 있으므로 이미지 높이 여유 있게 설정
+    fig, ax = plt.subplots(figsize=(num_cols * 2.5, (num_rows + 1) * 1.2))
     ax.axis('off')
-    
-    # 서버 환경(리눅스)과 로컬(윈도우) 한글 폰트 강제 설정
+
     import matplotlib.font_manager as fm
     font_path = "/usr/share/fonts/truetype/nanum/NanumGothic.ttf"
     if os.path.exists(font_path):
         fm.fontManager.addfont(font_path)
         plt.rcParams['font.family'] = 'NanumGothic'
     else:
-        # 로컬(윈도우) 대응
         plt.rcParams['font.family'] = 'Malgun Gothic'
-    
-    table = ax.table(cellText=df.values, colLabels=df.columns, loc='center', cellLoc='center')
+
+    table = ax.table(cellText=wrapped_df.values, colLabels=wrapped_df.columns, loc='center', cellLoc='center')
     table.auto_set_font_size(False)
-    table.set_fontsize(14)
-    table.scale(1, 2.5)
-    
+    table.set_fontsize(13)
+    table.scale(1, 3.5) # 줄바꿈을 위해 셀 높이를 더 높임
+
     for (row, col), cell in table.get_celld().items():
         if row == 0:
             cell.set_text_props(weight='bold', color='white')
             cell.set_facecolor('#4c78a8')
         cell.set_edgecolor('#333333')
-    
+
     buf = io.BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.1, dpi=400, transparent=True)
     plt.close(fig)
     buf.seek(0)
     return buf
+
 
 # 4. Streamlit UI 구성
 st.set_page_config(page_title="음료생산기술팀 프로젝트 보드", layout="wide")
