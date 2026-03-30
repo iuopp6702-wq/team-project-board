@@ -65,13 +65,15 @@ st.title("🚀 음료생산기술팀 AI프로젝트 진행현황")
 
 # 년/월 및 오늘 날짜 섹션
 now = datetime.date.today()
-date_col1, date_col2, date_col3 = st.columns([1, 1, 3])
+date_col1, date_col2, date_col3, date_col4 = st.columns([1, 1, 1, 2])
 
 with date_col1:
     year = st.selectbox("📅 년도", range(now.year-1, now.year+2), index=1)
 with date_col2:
     month = st.selectbox("📆 월", range(1, 13), index=now.month-1)
 with date_col3:
+    week = st.selectbox("📅 주차", [f"{i}주차" for i in range(1, 6)], index=0)
+with date_col4:
     st.markdown(f"<div style='text-align: right; padding-top: 35px; color: gray;'>오늘 날짜: {now.strftime('%Y-%m-%d')}</div>", unsafe_allow_html=True)
 
 st.divider()
@@ -80,7 +82,7 @@ st.divider()
 df = load_data()
 
 # 데이터 편집기
-st.subheader(f"📊 {year}년 {month}월 실시간 공유 표")
+st.subheader(f"📊 {year}년 {month}월 {week} 실시간 공유 표")
 edited_df = st.data_editor(df, num_rows="fixed", width="stretch")
 
 # 저장 및 이미지 다운로드 레이아웃
@@ -98,7 +100,7 @@ with col2:
     st.download_button(
         label="🖼️ 표만 이미지로 저장 (투명 PNG)",
         data=img_buf,
-        file_name=f"AI_Project_Status_{year}_{month}.png",
+        file_name=f"AI_Project_Status_{year}_{month}_{week}.png",
         mime="image/png"
     )
 
