@@ -125,9 +125,14 @@ st.divider()
 
 # 📋 복사용 표 섹션 추가
 with st.expander("📋 엑셀로 한 번에 복사 / 다운로드"):
-    st.info("아래 텍스트 박스 우측 상단의 '복사' 버튼을 눌러보세요. 엑셀에 그대로 붙여넣기(Ctrl+V) 됩니다!")
+    st.info("1. 아래 표를 직접 마우스로 드래그해서 복사하거나\n2. 텍스트 박스의 '복사' 버튼을 눌러 엑셀에 붙여넣으세요!")
     
-    # 엑셀 형식(탭 구분자)으로 변환하여 코드 블럭에 표시 (원클릭 복사 가능)
+    # 시각적인 표 표시 (엑셀처럼 보임)
+    st.table(edited_df)
+    
+    st.write("---")
+    st.write("👇 **원클릭 복사용 텍스트 (엑셀 붙여넣기용)**")
+    # 엑셀 형식(탭 구분자)으로 변환하여 코드 블럭에 표시
     tsv_data = edited_df.to_csv(index=False, sep='\t')
     st.code(tsv_data, language="text")
 
