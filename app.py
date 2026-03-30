@@ -105,11 +105,21 @@ with st.expander("⚙️ 표 항목(컬럼) 이름 수정하기"):
 # 데이터 편집기
 st.subheader(f"📊 {year}년 {month}월 {week} 실시간 공유 표")
 
-# 이름 컬럼 우선순위 및 진척률 % 표시 설정
-column_config = {
-    df.columns[0]: st.column_config.TextColumn(df.columns[0], width="medium", required=True),
-    df.columns[-1]: st.column_config.NumberColumn(df.columns[-1], min_value=0, max_value=100, format="%d%%")
-}
+# 이름 컬럼 '틀고정(pinned)' 및 진척률 % 표시 설정
+column_config = {{
+    df.columns[0]: st.column_config.TextColumn(
+        df.columns[0], 
+        width="medium", 
+        required=True, 
+        pinned=True  # 👈 왼쪽 끝에 틀고정!
+    ),
+    df.columns[-1]: st.column_config.NumberColumn(
+        df.columns[-1], 
+        min_value=0, 
+        max_value=100, 
+        format="%d%%"
+    )
+}}
 
 edited_df = st.data_editor(
     df, 
