@@ -122,4 +122,11 @@ with col2:
     )
 
 st.divider()
+
+# 📋 복사용 표 섹션 추가
+with st.expander("📋 마우스로 긁어서 복사하기 (엑셀/카톡용)"):
+    st.info("아래 표를 마우스로 드래그해서 복사(Ctrl+C)한 뒤, 엑셀이나 카톡에 붙여넣으세요!")
+    st.table(edited_df)
+
+st.divider()
 st.info("💡 팁: 표의 셀을 수정 후 반드시 '변경사항 저장하기'를 눌러주세요. 이미지는 배경이 투명한 PNG로 저장됩니다.")
