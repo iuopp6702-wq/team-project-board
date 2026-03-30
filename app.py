@@ -123,19 +123,14 @@ with col2:
     )
 
 with col3:
-    # 메일/엑셀용 HTML 표 생성 (검은색 테두리 스타일 포함)
-    header_html = "".join([f'<th style="border: 1px solid black; padding: 8px; background-color: #4c78a8; color: white;">{col}</th>' for col in edited_df.columns])
-    rows_html = ""
-    for _, row in edited_df.iterrows():
-        rows_html += "<tr>" + "".join([f'<td style="border: 1px solid black; padding: 8px; text-align: center;">{val}</td>' for val in row]) + "</tr>"
-    
-    full_html = f'<table style="border-collapse: collapse; width: 100%; border: 1px solid black;"><thead><tr>{header_html}</tr></thead><tbody>{rows_html}</tbody></table>'
-    # 자바스크립트에서 쓰기 위해 줄바꿈 및 따옴표 처리
-    safe_html = full_html.replace("'", "\\'").replace("\n", "")
+    # 이미지 생성 및 Base64 변환 (복사용)
+    img_buf_copy = df_to_image(edited_df)
+    import base64
+    img_base64 = base64.b64encode(img_buf_copy.getvalue()).decode()
 
-    # 📋 메일 발송용 표 복사 버튼 (HTML 리치 텍스트 방식)
-    copy_js = f"""
-        <button id="copyBtn" style="
+    # 🖼️ 이미지 클립보드 복사 버튼 (JavaScript 활용)
+    copy_img_js = f"""
+        <button id="copyImgBtn" style="
             width: 100%;
             height: 38px;
             background-color: #f0f2f6;
@@ -145,23 +140,24 @@ with col3:
             color: #31333f;
             font-size: 14px;
             font-weight: 500;
-        ">📋 메일용 표 복사</button>
+        ">📸 이미지 바로 복사</button>
         <script>
-        document.getElementById('copyBtn').onclick = function() {{
-            const htmlType = 'text/html';
-            const htmlContent = '{safe_html}';
-            const blob = new Blob([htmlContent], {{ type: htmlType }});
-            const data = [new ClipboardItem({{ [htmlType]: blob, 'text/plain': blob }})];
-            
-            navigator.clipboard.write(data).then(() => {{
-                alert("표가 복사되었습니다! 메일(아웃룩/지메일)에 바로 붙여넣으세요(Ctrl+V).");
-            }}, (err) => {{
-                console.error('복사 실패:', err);
-            }});
-        }};
+        async function copyImage() {{
+            try {{
+                const response = await fetch('data:image/png;base64,{img_base64}');
+                const blob = await response.blob();
+                const item = new ClipboardItem({{ 'image/png': blob }});
+                await navigator.clipboard.write([item]);
+                alert("이미지가 복사되었습니다! 메일에 바로 붙여넣으세요(Ctrl+V).");
+            }} catch (err) {{
+                console.error('이미지 복사 실패:', err);
+                alert("복사 실패: 브라우저 보안 설정을 확인해주세요.");
+            }}
+        }}
+        document.getElementById('copyImgBtn').onclick = copyImage;
         </script>
     """
     import streamlit.components.v1 as components
-    components.html(copy_js, height=45)
+    components.html(copy_img_js, height=45)
 
 st.divider()
