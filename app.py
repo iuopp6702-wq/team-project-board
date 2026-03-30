@@ -100,34 +100,36 @@ with st.expander("⚙️ 표 항목(컬럼) 이름 수정하기"):
         st.success("항목 이름이 변경되었습니다!")
         st.rerun()
 
-# 데이터 편집기 (틀고정 강화 버전)
+# 데이터 편집기 (모바일 가독성 최적화)
 st.subheader(f"📊 {year}년 {month}월 {week} 실시간 공유 표")
 
 first_col = df.columns[0]
 last_col = df.columns[-1]
 
-# 컬럼 설정 (이름 틀고정 + 진척률 % 표시)
+# 컬럼 설정 (이름 칸을 좁게 고정하여 모바일 공간 확보)
 column_config = {
     first_col: st.column_config.TextColumn(
         first_col,
-        width="medium",
-        required=True,
-        pinned="left"  # 👈 왼쪽 끝에 찰떡같이 틀고정!
+        width="small",  # 👈 이름 칸을 아주 슬림하게!
+        required=True
     ),
     last_col: st.column_config.NumberColumn(
         last_col,
         min_value=0,
         max_value=100,
-        format="%d%%"
+        format="%d%%",
+        width="small"   # 👈 진척률 칸도 슬림하게!
     )
 }
 
+# 모든 컬럼에 대해 기본 너비를 적절히 배분
 edited_df = st.data_editor(
     df, 
     num_rows="fixed", 
     width="stretch", 
     column_config=column_config,
-    use_container_width=True
+    use_container_width=True,
+    hide_index=True # 인덱스(0,1,2...)를 숨겨서 공간 추가 확보
 )
 
 # 저장 및 이미지 파일 저장 레이아웃
