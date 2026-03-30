@@ -102,12 +102,12 @@ with st.expander("⚙️ 표 항목(컬럼) 이름 수정하기"):
         st.success("항목 이름이 변경되었습니다!")
         st.rerun()
 
-# 데이터 편집기 (모바일에서 이름이 최대한 보이도록 너비 고정)
+# 데이터 편집기
 st.subheader(f"📊 {year}년 {month}월 {week} 실시간 공유 표")
 
-# 이름 컬럼을 최대한 고정(Pinned)처럼 보이게 너비 설정
+# 이름 컬럼 우선순위 및 진척률 % 표시 설정
 column_config = {
-    df.columns[0]: st.column_config.TextColumn(df.columns[0], width="small", required=True),
+    df.columns[0]: st.column_config.TextColumn(df.columns[0], width="medium", required=True),
     df.columns[-1]: st.column_config.NumberColumn(df.columns[-1], min_value=0, max_value=100, format="%d%%")
 }
 
@@ -128,10 +128,10 @@ with col1:
         st.rerun()
 
 with col2:
-    # 이미지 생성 버튼
+    # 이미지 생성 버튼 (다운로드용)
     img_buf = df_to_image(edited_df)
     st.download_button(
-        label="🖼️ 이미지로 저장",
+        label="🖼️ 이미지 파일 저장",
         data=img_buf,
         file_name=f"AI_Project_Status_{year}_{month}_{week}.png",
         mime="image/png",
@@ -139,14 +139,23 @@ with col2:
     )
 
 with col3:
-    # 이미지 생성 및 Base64 변환 (복사용)
-    img_buf_copy = df_to_image(edited_df)
-    import base64
-    img_base64 = base64.b64encode(img_buf_copy.getvalue()).decode()
+    # 📋 메일 발송용 '검은 테두리 표' 복사 기능
+    # 진척률에 %를 붙여서 HTML 생성
+    display_df = edited_df.copy()
+    pct_col = display_df.columns[-1]
+    display_df[pct_col] = display_df[pct_col].apply(lambda x: f"{x}%")
+    
+    header_html = "".join([f'<th style="border: 1px solid black; padding: 10px; background-color: #4c78a8; color: white; font-family: sans-serif;">{col}</th>' for col in display_df.columns])
+    rows_html = ""
+    for _, row in display_df.iterrows():
+        rows_html += "<tr>" + "".join([f'<td style="border: 1px solid black; padding: 10px; text-align: center; color: black; background-color: white; font-family: sans-serif;">{val}</td>' for val in row]) + "</tr>"
+    
+    full_html = f'<table style="border-collapse: collapse; width: 100%; border: 1px solid black;"><thead><tr>{header_html}</tr></thead><tbody>{rows_html}</tbody></table>'
+    safe_html = full_html.replace("'", "\\'").replace("\n", "")
 
-    # 🖼️ 이미지 클립보드 복사 버튼 (JavaScript 활용)
-    copy_img_js = f"""
-        <button id="copyImgBtn" style="
+    # 자바스크립트로 리치 텍스트(표) 복사
+    copy_js = f"""
+        <button id="copyTableBtn" style="
             width: 100%;
             height: 38px;
             background-color: #f0f2f6;
@@ -156,24 +165,20 @@ with col3:
             color: #31333f;
             font-size: 14px;
             font-weight: 500;
-        ">📸 이미지 바로 복사</button>
+        ">📋 메일용 표 복사</button>
         <script>
-        async function copyImage() {{
-            try {{
-                const response = await fetch('data:image/png;base64,{img_base64}');
-                const blob = await response.blob();
-                const item = new ClipboardItem({{ 'image/png': blob }});
-                await navigator.clipboard.write([item]);
-                alert("이미지가 복사되었습니다! 메일에 바로 붙여넣으세요(Ctrl+V).");
-            }} catch (err) {{
-                console.error('이미지 복사 실패:', err);
-                alert("복사 실패: 브라우저 보안 설정을 확인해주세요.");
-            }}
+        async function copyTable() {{
+            const htmlType = 'text/html';
+            const htmlContent = '{safe_html}';
+            const blob = new Blob([htmlContent], {{ type: htmlType }});
+            const data = [new ClipboardItem({{ [htmlType]: blob, 'text/plain': blob }})];
+            await navigator.clipboard.write(data);
+            alert("검은 테두리 표가 복사되었습니다! 메일에 붙여넣으세요(Ctrl+V).");
         }}
-        document.getElementById('copyImgBtn').onclick = copyImage;
+        document.getElementById('copyTableBtn').onclick = copyTable;
         </script>
     """
     import streamlit.components.v1 as components
-    components.html(copy_img_js, height=45)
+    components.html(copy_js, height=45)
 
 st.divider()
