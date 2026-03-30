@@ -5,16 +5,20 @@ import io
 import os
 import datetime
 
-# 1. 설정 및 데이터 파일 경로
-DATA_FILE = 'project_data.csv'
-COLUMNS = ['이름', '프로젝트명', '지난주', '진척상황', '최종목표', '진척률(%)']
+from streamlit_gsheets import GSheetsConnection
 
-# 2. 데이터 불러오기 및 초기화 함수
+# 1. 설정 및 구글 시트 연결
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1zTdSMdir4X_h8u4u9w2zN0AAm-4Ir14OU55rSgENaOk/edit?usp=sharing"
+
+# 2. 데이터 불러오기 및 초기화 함수 (구글 시트 연동)
 def load_data():
-    if os.path.exists(DATA_FILE):
-        return pd.read_csv(DATA_FILE)
-    else:
-        # 초기 데이터 (5명분)
+    conn = st.connection("gsheets", type=GSheetsConnection)
+    try:
+        # 구글 시트에서 데이터 읽기
+        df = conn.read(spreadsheet=SHEET_URL, ttl=0) # ttl=0으로 실시간 데이터 로드
+        return df
+    except Exception:
+        # 시트가 비어있거나 오류 시 초기 데이터 생성
         data = {
             '이름': ['팀원1', '팀원2', '팀원3', '팀원4', '팀원5'],
             '프로젝트명': ['미입력'] * 5,
@@ -23,9 +27,12 @@ def load_data():
             '최종목표': ['미입력'] * 5,
             '진척률(%)': [0] * 5
         }
-        df = pd.DataFrame(data)
-        df.to_csv(DATA_FILE, index=False)
-        return df
+        return pd.DataFrame(data)
+
+# 데이터 업데이트 함수 (구글 시트 저장)
+def save_data(df):
+    conn = st.connection("gsheets", type=GSheetsConnection)
+    conn.update(spreadsheet=SHEET_URL, data=df)
 import textwrap
 
 # 3. 표를 이미지로 변환하는 함수 (줄바꿈 기능 추가)
@@ -102,7 +109,7 @@ with st.expander("⚙️ 표 항목(컬럼) 이름 수정하기"):
     
     if st.button("✅ 항목 이름 저장"):
         df.columns = new_columns
-        df.to_csv(DATA_FILE, index=False)
+        save_data(df) # 구글 시트 업데이트
         st.success("항목 이름이 변경되었습니다!")
         st.rerun()
 
@@ -116,7 +123,7 @@ last_col = df.columns[-1]
 column_config = {
     first_col: st.column_config.TextColumn(
         first_col,
-        width="small",  # 👈 이름 칸을 아주 슬림하게!
+        width="small",
         required=True
     ),
     last_col: st.column_config.NumberColumn(
@@ -124,7 +131,7 @@ column_config = {
         min_value=0,
         max_value=100,
         format="%d%%",
-        width="small"   # 👈 진척률 칸도 슬림하게!
+        width="small"
     )
 }
 
@@ -135,7 +142,7 @@ edited_df = st.data_editor(
     width="stretch", 
     column_config=column_config,
     use_container_width=True,
-    hide_index=True # 인덱스(0,1,2...)를 숨겨서 공간 추가 확보
+    hide_index=True 
 )
 
 # 저장 및 이미지 파일 저장 레이아웃
@@ -143,8 +150,8 @@ col1, col2 = st.columns([1, 1])
 
 with col1:
     if st.button("💾 변경사항 저장하기", use_container_width=True):
-        edited_df.to_csv(DATA_FILE, index=False)
-        st.success("데이터가 성공적으로 저장되었습니다!")
+        save_data(edited_df) # 구글 시트 업데이트
+        st.success("데이터가 구글 시트에 성공적으로 저장되었습니다!")
         st.rerun()
 
 with col2:
