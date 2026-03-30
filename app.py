@@ -30,32 +30,31 @@ def load_data():
 # 3. 표를 이미지로 변환하는 함수 (품질 상향 및 폰트 수정)
 def df_to_image(df):
     num_rows, num_cols = df.shape
-    # 이미지 크기 확대 (뭉침 방지)
     fig, ax = plt.subplots(figsize=(num_cols * 2.5, (num_rows + 1) * 0.8))
     ax.axis('off')
     
-    # 서버 환경(리눅스)과 로컬(윈도우) 한글 폰트 대응
+    # 서버 환경(리눅스)과 로컬(윈도우) 한글 폰트 강제 설정
     import matplotlib.font_manager as fm
-    font_list = [f.name for f in fm.fontManager.ttflist]
-    if 'NanumGothic' in font_list:
+    font_path = "/usr/share/fonts/truetype/nanum/NanumGothic.ttf"
+    if os.path.exists(font_path):
+        fm.fontManager.addfont(font_path)
         plt.rcParams['font.family'] = 'NanumGothic'
-    elif 'Malgun Gothic' in font_list:
+    else:
+        # 로컬(윈도우) 대응
         plt.rcParams['font.family'] = 'Malgun Gothic'
     
     table = ax.table(cellText=df.values, colLabels=df.columns, loc='center', cellLoc='center')
     table.auto_set_font_size(False)
-    table.set_fontsize(14) # 글자 크기 키움
-    table.scale(1, 2.5) # 셀 높이 넉넉하게
+    table.set_fontsize(14)
+    table.scale(1, 2.5)
     
-    # 헤더 및 셀 스타일링
     for (row, col), cell in table.get_celld().items():
         if row == 0:
             cell.set_text_props(weight='bold', color='white')
             cell.set_facecolor('#4c78a8')
-        cell.set_edgecolor('#333333') # 테두리 더 진하게
+        cell.set_edgecolor('#333333')
     
     buf = io.BytesIO()
-    # DPI 400으로 높여서 아주 선명하게 저장
     plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.1, dpi=400, transparent=True)
     plt.close(fig)
     buf.seek(0)
@@ -96,27 +95,29 @@ with st.expander("⚙️ 표 항목(컬럼) 이름 수정하기"):
             new_columns.append(new_name)
     
     if st.button("✅ 항목 이름 저장"):
-        # 컬럼명 변경 및 저장
         df.columns = new_columns
         df.to_csv(DATA_FILE, index=False)
         st.success("항목 이름이 변경되었습니다!")
         st.rerun()
 
-# 데이터 편집기
+# 데이터 편집기 (틀고정 강화 버전)
 st.subheader(f"📊 {year}년 {month}월 {week} 실시간 공유 표")
 
-# 이름 컬럼 '틀고정(pinned)' 및 진척률 % 표시 설정
+first_col = df.columns[0]
+last_col = df.columns[-1]
+
+# 컬럼 설정 (이름 틀고정 + 진척률 % 표시)
 column_config = {
-    df.columns[0]: st.column_config.TextColumn(
-        df.columns[0], 
-        width="medium", 
-        required=True, 
-        pinned=True  # 👈 왼쪽 끝에 틀고정!
+    first_col: st.column_config.TextColumn(
+        first_col,
+        width="medium",
+        required=True,
+        pinned="left"  # 👈 왼쪽 끝에 찰떡같이 틀고정!
     ),
-    df.columns[-1]: st.column_config.NumberColumn(
-        df.columns[-1], 
-        min_value=0, 
-        max_value=100, 
+    last_col: st.column_config.NumberColumn(
+        last_col,
+        min_value=0,
+        max_value=100,
         format="%d%%"
     )
 }
@@ -125,7 +126,8 @@ edited_df = st.data_editor(
     df, 
     num_rows="fixed", 
     width="stretch", 
-    column_config=column_config
+    column_config=column_config,
+    use_container_width=True
 )
 
 # 저장 및 이미지 파일 저장 레이아웃
