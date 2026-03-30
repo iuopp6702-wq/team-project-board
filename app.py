@@ -118,8 +118,8 @@ edited_df = st.data_editor(
     column_config=column_config
 )
 
-# 저장 및 이미지/복사 레이아웃
-col1, col2, col3 = st.columns([1, 1, 1])
+# 저장 및 이미지 파일 저장 레이아웃
+col1, col2 = st.columns([1, 1])
 
 with col1:
     if st.button("💾 변경사항 저장하기", use_container_width=True):
@@ -137,78 +137,5 @@ with col2:
         mime="image/png",
         use_container_width=True
     )
-
-with col3:
-    # 메일/엑셀용 HTML 표 생성 (검은색 테두리 스타일 포함)
-    display_df = edited_df.copy()
-    pct_col = display_df.columns[-1]
-    display_df[pct_col] = display_df[pct_col].apply(lambda x: f"{x}%")
-    
-    header_html = "".join([f'<th style="border: 1px solid black; padding: 10px; background-color: #4c78a8; color: white; font-family: sans-serif;">{col}</th>' for col in display_df.columns])
-    rows_html = ""
-    for _, row in display_df.iterrows():
-        rows_html += "<tr>" + "".join([f'<td style="border: 1px solid black; padding: 10px; text-align: center; color: black; background-color: white; font-family: sans-serif;">{val}</td>' for val in row]) + "</tr>"
-    
-    full_html = f'<table style="border-collapse: collapse; width: 100%; border: 1px solid black;"><thead><tr>{header_html}</tr></thead><tbody>{rows_html}</tbody></table>'
-    safe_html = full_html.replace("'", "\\'").replace("\n", "")
-
-    # 📋 진짜 버튼처럼 반응하는 원클릭 복사 버튼 (CSS 효과 추가)
-    copy_js = f"""
-        <style>
-        #copyTableBtn {{
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 400;
-            padding: 0.25rem 0.75rem;
-            border-radius: 0.5rem;
-            margin: 0px;
-            line-height: 1.6;
-            color: rgb(49, 51, 63);
-            background-color: rgb(255, 255, 255);
-            border: 1px solid rgba(49, 51, 63, 0.2);
-            width: 100%;
-            height: 38.4px;
-            cursor: pointer;
-            font-family: "Source Sans Pro", sans-serif;
-            font-size: 14px;
-            transition: border-color 0.2s, color 0.2s;
-        }}
-        #copyTableBtn:hover {{
-            border-color: #ff4b4b;
-            color: #ff4b4b;
-        }}
-        #copyTableBtn:active {{
-            background-color: #ff4b4b;
-            color: white;
-            border-color: #ff4b4b;
-        }}
-        </style>
-        <button id="copyTableBtn">📋 메일용 표 복사</button>
-        <script>
-        async function copyTable() {{
-            try {{
-                const htmlType = 'text/html';
-                const htmlContent = '{safe_html}';
-                const blob = new Blob([htmlContent], {{ type: htmlType }});
-                const data = [new ClipboardItem({{ [htmlType]: blob, 'text/plain': blob }})];
-                await navigator.clipboard.write(data);
-                
-                // 버튼 피드백
-                const btn = document.getElementById('copyTableBtn');
-                const originalText = btn.innerText;
-                btn.innerText = "✅ 복사 완료!";
-                setTimeout(() => {{
-                    btn.innerText = originalText;
-                }}, 1500);
-            }} catch (err) {{
-                console.error('복사 실패:', err);
-            }}
-        }}
-        document.getElementById('copyTableBtn').onclick = copyTable;
-        </script>
-    """
-    import streamlit.components.v1 as components
-    components.html(copy_js, height=45)
 
 st.divider()
