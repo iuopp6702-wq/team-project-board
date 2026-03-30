@@ -139,8 +139,7 @@ with col2:
     )
 
 with col3:
-    # 📋 메일 발송용 '검은 테두리 표' 복사 기능
-    # 진척률에 %를 붙여서 HTML 생성
+    # 메일/엑셀용 HTML 표 생성 (검은색 테두리 스타일 포함)
     display_df = edited_df.copy()
     pct_col = display_df.columns[-1]
     display_df[pct_col] = display_df[pct_col].apply(lambda x: f"{x}%")
@@ -153,27 +152,47 @@ with col3:
     full_html = f'<table style="border-collapse: collapse; width: 100%; border: 1px solid black;"><thead><tr>{header_html}</tr></thead><tbody>{rows_html}</tbody></table>'
     safe_html = full_html.replace("'", "\\'").replace("\n", "")
 
-    # 자바스크립트로 리치 텍스트(표) 복사
+    # 📋 디자인 통일 및 알림창 없는 원클릭 복사 버튼
     copy_js = f"""
         <button id="copyTableBtn" style="
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 400;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.5rem;
+            margin: 0px;
+            line-height: 1.6;
+            color: rgb(49, 51, 63);
+            background-color: rgb(255, 255, 255);
+            border: 1px solid rgba(49, 51, 63, 0.2);
             width: 100%;
-            height: 38px;
-            background-color: #f0f2f6;
-            border: 1px solid #dcdfe3;
-            border-radius: 8px;
+            height: 38.4px;
             cursor: pointer;
-            color: #31333f;
+            font-family: sans-serif;
             font-size: 14px;
-            font-weight: 500;
         ">📋 메일용 표 복사</button>
         <script>
         async function copyTable() {{
-            const htmlType = 'text/html';
-            const htmlContent = '{safe_html}';
-            const blob = new Blob([htmlContent], {{ type: htmlType }});
-            const data = [new ClipboardItem({{ [htmlType]: blob, 'text/plain': blob }})];
-            await navigator.clipboard.write(data);
-            alert("검은 테두리 표가 복사되었습니다! 메일에 붙여넣으세요(Ctrl+V).");
+            try {{
+                const htmlType = 'text/html';
+                const htmlContent = '{safe_html}';
+                const blob = new Blob([htmlContent], {{ type: htmlType }});
+                const data = [new ClipboardItem({{ [htmlType]: blob, 'text/plain': blob }})];
+                await navigator.clipboard.write(data);
+                
+                // 버튼 피드백 (알림창 대신 글자 변경)
+                const btn = document.getElementById('copyTableBtn');
+                const originalText = btn.innerText;
+                btn.innerText = "✅ 복사 완료!";
+                btn.style.borderColor = "#ff4b4b";
+                setTimeout(() => {{
+                    btn.innerText = originalText;
+                    btn.style.borderColor = "rgba(49, 51, 63, 0.2)";
+                }}, 2000);
+            }} catch (err) {{
+                console.error('복사 실패:', err);
+            }}
         }}
         document.getElementById('copyTableBtn').onclick = copyTable;
         </script>
