@@ -102,7 +102,7 @@ with st.expander("⚙️ 표 항목(컬럼) 이름 수정하기"):
 st.subheader(f"📊 {year}년 {month}월 {week} 실시간 공유 표")
 edited_df = st.data_editor(df, num_rows="fixed", width="stretch")
 
-# 저장 및 이미지/엑셀 다운로드 레이아웃
+# 저장 및 이미지/복사 레이아웃
 col1, col2, col3 = st.columns([1, 1, 1])
 
 with col1:
@@ -123,11 +123,33 @@ with col2:
     )
 
 with col3:
-    # 엑셀에 붙여넣었을 때 '칸'이 유지되도록 HTML 형식으로 준비
-    html_table = edited_df.to_html(index=False)
-    # 복사 버튼 (칸이 유지되는 HTML 방식)
-    if st.button("📋 엑셀용 표 복사", use_container_width=True):
-        st.code(html_table, language="html")
-        st.toast("위 박스의 'Copy'를 누르고 엑셀에 붙여넣으세요! 칸이 그대로 유지됩니다.")
+    # 엑셀용 데이터 준비 (탭 구분자)
+    tsv_data = edited_df.to_csv(index=False, sep='\t').replace("`", "'")
+    
+    # 📋 진짜 원클릭 복사 버튼 (JavaScript 활용)
+    # 화면에 코드를 안 띄우고 바로 클립보드로 보냅니다.
+    copy_js = f"""
+        <button id="copyBtn" style="
+            width: 100%;
+            height: 38px;
+            background-color: #f0f2f6;
+            border: 1px solid #dcdfe3;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #31333f;
+            font-size: 14px;
+            font-weight: 500;
+        ">📋 엑셀용 표 복사</button>
+        <script>
+        document.getElementById('copyBtn').onclick = function() {{
+            const text = `{tsv_data}`;
+            navigator.clipboard.writeText(text).then(() => {{
+                alert("표가 복사되었습니다! 이제 엑셀에 붙여넣으세요(Ctrl+V).");
+            }});
+        }};
+        </script>
+    """
+    import streamlit.components.v1 as components
+    components.html(copy_js, height=45)
 
 st.divider()
