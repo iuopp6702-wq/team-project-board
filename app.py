@@ -102,11 +102,11 @@ with st.expander("⚙️ 표 항목(컬럼) 이름 수정하기"):
 st.subheader(f"📊 {year}년 {month}월 {week} 실시간 공유 표")
 edited_df = st.data_editor(df, num_rows="fixed", width="stretch")
 
-# 저장 및 이미지 다운로드 레이아웃
-col1, col2 = st.columns([1, 1])
+# 저장 및 이미지/엑셀 다운로드 레이아웃
+col1, col2, col3 = st.columns([1, 1, 1])
 
 with col1:
-    if st.button("💾 변경사항 저장하기"):
+    if st.button("💾 변경사항 저장하기", use_container_width=True):
         edited_df.to_csv(DATA_FILE, index=False)
         st.success("데이터가 성공적으로 저장되었습니다!")
         st.rerun()
@@ -115,40 +115,38 @@ with col2:
     # 이미지 생성 버튼
     img_buf = df_to_image(edited_df)
     st.download_button(
-        label="🖼️ 표만 이미지로 저장 (투명 PNG)",
+        label="🖼️ 이미지로 저장",
         data=img_buf,
         file_name=f"AI_Project_Status_{year}_{month}_{week}.png",
-        mime="image/png"
+        mime="image/png",
+        use_container_width=True
     )
+
+with col3:
+    # 엑셀 형식(탭 구분자)으로 데이터 준비
+    tsv_data = edited_df.to_csv(index=False, sep='\t')
+    # 원클릭 복사 버튼 (가장 가벼운 방식)
+    if st.button("📋 엑셀용 표 복사", use_container_width=True):
+        # 텍스트 박스 없이 바로 클립보드로 보내는 대신, 
+        # 사용자에게 복사할 수 있는 창을 가장 깔끔하게 하나만 띄워줍니다.
+        st.code(tsv_data, language="text")
+        st.toast("위 텍스트 박스 우측의 'Copy' 버튼을 누르면 엑셀 복사 끝!")
 
 st.divider()
 
-# 📋 복사용 표 섹션 추가
-with st.expander("📋 엑셀로 한 번에 복사 / 다운로드"):
-    st.info("1. 아래 표를 직접 마우스로 드래그해서 복사하거나\n2. 텍스트 박스의 '복사' 버튼을 눌러 엑셀에 붙여넣으세요!")
-    
-    # 시각적인 표 표시 (엑셀처럼 보임)
-    st.table(edited_df)
-    
-    st.write("---")
-    st.write("👇 **원클릭 복사용 텍스트 (엑셀 붙여넣기용)**")
-    # 엑셀 형식(탭 구분자)으로 변환하여 코드 블럭에 표시
-    tsv_data = edited_df.to_csv(index=False, sep='\t')
-    st.code(tsv_data, language="text")
-
-    st.write("---")
-    # 엑셀 파일 다운로드 기능
+# 엑셀 파일 다운로드 (필요할 때만 열어보게 아주 작게 유지)
+with st.expander("📥 엑셀 파일로 받기"):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         edited_df.to_excel(writer, index=False, sheet_name='Project_Status')
     excel_data = output.getvalue()
-    
     st.download_button(
-        label="📥 엑셀(.xlsx) 파일로 직접 다운로드",
+        label="📥 엑셀(.xlsx) 다운로드",
         data=excel_data,
         file_name=f"AI_Project_Status_{year}_{month}_{week}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-st.divider()
+st.info("💡 팁: '엑셀용 표 복사'를 누르고 나타나는 창에서 Copy 버튼을 누르면 엑셀에 그대로 붙여넣기(Ctrl+V) 됩니다.")
+
 st.info("💡 팁: 표의 셀을 수정 후 반드시 '변경사항 저장하기'를 눌러주세요. 이미지는 배경이 투명한 PNG로 저장됩니다.")
