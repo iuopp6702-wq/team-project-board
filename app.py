@@ -124,9 +124,26 @@ with col2:
 st.divider()
 
 # 📋 복사용 표 섹션 추가
-with st.expander("📋 마우스로 긁어서 복사하기 (엑셀/카톡용)"):
-    st.info("아래 표를 마우스로 드래그해서 복사(Ctrl+C)한 뒤, 엑셀이나 카톡에 붙여넣으세요!")
-    st.table(edited_df)
+with st.expander("📋 엑셀로 한 번에 복사 / 다운로드"):
+    st.info("아래 텍스트 박스 우측 상단의 '복사' 버튼을 눌러보세요. 엑셀에 그대로 붙여넣기(Ctrl+V) 됩니다!")
+    
+    # 엑셀 형식(탭 구분자)으로 변환하여 코드 블럭에 표시 (원클릭 복사 가능)
+    tsv_data = edited_df.to_csv(index=False, sep='\t')
+    st.code(tsv_data, language="text")
+
+    st.write("---")
+    # 엑셀 파일 다운로드 기능
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        edited_df.to_excel(writer, index=False, sheet_name='Project_Status')
+    excel_data = output.getvalue()
+    
+    st.download_button(
+        label="📥 엑셀(.xlsx) 파일로 직접 다운로드",
+        data=excel_data,
+        file_name=f"AI_Project_Status_{year}_{month}_{week}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 st.divider()
 st.info("💡 팁: 표의 셀을 수정 후 반드시 '변경사항 저장하기'를 눌러주세요. 이미지는 배경이 투명한 PNG로 저장됩니다.")
