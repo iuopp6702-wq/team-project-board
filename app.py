@@ -81,6 +81,23 @@ st.divider()
 # 데이터 로드
 df = load_data()
 
+# 4-1. 항목(컬럼) 이름 수정 섹션
+with st.expander("⚙️ 표 항목(컬럼) 이름 수정하기"):
+    st.info("관리하고 싶은 항목 이름을 수정하세요. 수정 후 아래 '항목 이름 저장'을 누르면 반영됩니다.")
+    new_columns = []
+    cols = st.columns(len(df.columns))
+    for i, col_name in enumerate(df.columns):
+        with cols[i]:
+            new_name = st.text_input(f"항목 {i+1}", value=col_name, key=f"col_{i}")
+            new_columns.append(new_name)
+    
+    if st.button("✅ 항목 이름 저장"):
+        # 컬럼명 변경 및 저장
+        df.columns = new_columns
+        df.to_csv(DATA_FILE, index=False)
+        st.success("항목 이름이 변경되었습니다!")
+        st.rerun()
+
 # 데이터 편집기
 st.subheader(f"📊 {year}년 {month}월 {week} 실시간 공유 표")
 edited_df = st.data_editor(df, num_rows="fixed", width="stretch")
