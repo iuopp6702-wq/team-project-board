@@ -123,11 +123,17 @@ with col2:
     )
 
 with col3:
-    # 엑셀용 데이터 준비 (탭 구분자)
-    tsv_data = edited_df.to_csv(index=False, sep='\t').replace("`", "'")
+    # 메일/엑셀용 HTML 표 생성 (검은색 테두리 스타일 포함)
+    header_html = "".join([f'<th style="border: 1px solid black; padding: 8px; background-color: #4c78a8; color: white;">{col}</th>' for col in edited_df.columns])
+    rows_html = ""
+    for _, row in edited_df.iterrows():
+        rows_html += "<tr>" + "".join([f'<td style="border: 1px solid black; padding: 8px; text-align: center;">{val}</td>' for val in row]) + "</tr>"
     
-    # 📋 진짜 원클릭 복사 버튼 (JavaScript 활용)
-    # 화면에 코드를 안 띄우고 바로 클립보드로 보냅니다.
+    full_html = f'<table style="border-collapse: collapse; width: 100%; border: 1px solid black;"><thead><tr>{header_html}</tr></thead><tbody>{rows_html}</tbody></table>'
+    # 자바스크립트에서 쓰기 위해 줄바꿈 및 따옴표 처리
+    safe_html = full_html.replace("'", "\\'").replace("\n", "")
+
+    # 📋 메일 발송용 표 복사 버튼 (HTML 리치 텍스트 방식)
     copy_js = f"""
         <button id="copyBtn" style="
             width: 100%;
@@ -139,12 +145,18 @@ with col3:
             color: #31333f;
             font-size: 14px;
             font-weight: 500;
-        ">📋 엑셀용 표 복사</button>
+        ">📋 메일용 표 복사</button>
         <script>
         document.getElementById('copyBtn').onclick = function() {{
-            const text = `{tsv_data}`;
-            navigator.clipboard.writeText(text).then(() => {{
-                alert("표가 복사되었습니다! 이제 엑셀에 붙여넣으세요(Ctrl+V).");
+            const htmlType = 'text/html';
+            const htmlContent = '{safe_html}';
+            const blob = new Blob([htmlContent], {{ type: htmlType }});
+            const data = [new ClipboardItem({{ [htmlType]: blob, 'text/plain': blob }})];
+            
+            navigator.clipboard.write(data).then(() => {{
+                alert("표가 복사되었습니다! 메일(아웃룩/지메일)에 바로 붙여넣으세요(Ctrl+V).");
+            }}, (err) => {{
+                console.error('복사 실패:', err);
             }});
         }};
         </script>
