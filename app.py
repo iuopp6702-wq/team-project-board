@@ -123,30 +123,11 @@ with col2:
     )
 
 with col3:
-    # 엑셀 형식(탭 구분자)으로 데이터 준비
-    tsv_data = edited_df.to_csv(index=False, sep='\t')
-    # 원클릭 복사 버튼 (가장 가벼운 방식)
+    # 엑셀에 붙여넣었을 때 '칸'이 유지되도록 HTML 형식으로 준비
+    html_table = edited_df.to_html(index=False)
+    # 복사 버튼 (칸이 유지되는 HTML 방식)
     if st.button("📋 엑셀용 표 복사", use_container_width=True):
-        # 텍스트 박스 없이 바로 클립보드로 보내는 대신, 
-        # 사용자에게 복사할 수 있는 창을 가장 깔끔하게 하나만 띄워줍니다.
-        st.code(tsv_data, language="text")
-        st.toast("위 텍스트 박스 우측의 'Copy' 버튼을 누르면 엑셀 복사 끝!")
+        st.code(html_table, language="html")
+        st.toast("위 박스의 'Copy'를 누르고 엑셀에 붙여넣으세요! 칸이 그대로 유지됩니다.")
 
 st.divider()
-
-# 엑셀 파일 다운로드 (필요할 때만 열어보게 아주 작게 유지)
-with st.expander("📥 엑셀 파일로 받기"):
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        edited_df.to_excel(writer, index=False, sheet_name='Project_Status')
-    excel_data = output.getvalue()
-    st.download_button(
-        label="📥 엑셀(.xlsx) 다운로드",
-        data=excel_data,
-        file_name=f"AI_Project_Status_{year}_{month}_{week}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
-st.info("💡 팁: '엑셀용 표 복사'를 누르고 나타나는 창에서 Copy 버튼을 누르면 엑셀에 그대로 붙여넣기(Ctrl+V) 됩니다.")
-
-st.info("💡 팁: 표의 셀을 수정 후 반드시 '변경사항 저장하기'를 눌러주세요. 이미지는 배경이 투명한 PNG로 저장됩니다.")
