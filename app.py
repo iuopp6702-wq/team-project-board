@@ -106,7 +106,7 @@ with st.expander("⚙️ 표 항목(컬럼) 이름 수정하기"):
 st.subheader(f"📊 {year}년 {month}월 {week} 실시간 공유 표")
 
 # 이름 컬럼 '틀고정(pinned)' 및 진척률 % 표시 설정
-column_config = {{
+column_config = {
     df.columns[0]: st.column_config.TextColumn(
         df.columns[0], 
         width="medium", 
@@ -119,7 +119,7 @@ column_config = {{
         max_value=100, 
         format="%d%%"
     )
-}}
+}
 
 edited_df = st.data_editor(
     df, 
