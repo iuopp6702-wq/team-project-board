@@ -152,9 +152,10 @@ with col3:
     full_html = f'<table style="border-collapse: collapse; width: 100%; border: 1px solid black;"><thead><tr>{header_html}</tr></thead><tbody>{rows_html}</tbody></table>'
     safe_html = full_html.replace("'", "\\'").replace("\n", "")
 
-    # 📋 디자인 통일 및 알림창 없는 원클릭 복사 버튼
+    # 📋 진짜 버튼처럼 반응하는 원클릭 복사 버튼 (CSS 효과 추가)
     copy_js = f"""
-        <button id="copyTableBtn" style="
+        <style>
+        #copyTableBtn {{
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -169,9 +170,21 @@ with col3:
             width: 100%;
             height: 38.4px;
             cursor: pointer;
-            font-family: sans-serif;
+            font-family: "Source Sans Pro", sans-serif;
             font-size: 14px;
-        ">📋 메일용 표 복사</button>
+            transition: border-color 0.2s, color 0.2s;
+        }}
+        #copyTableBtn:hover {{
+            border-color: #ff4b4b;
+            color: #ff4b4b;
+        }}
+        #copyTableBtn:active {{
+            background-color: #ff4b4b;
+            color: white;
+            border-color: #ff4b4b;
+        }}
+        </style>
+        <button id="copyTableBtn">📋 메일용 표 복사</button>
         <script>
         async function copyTable() {{
             try {{
@@ -181,15 +194,13 @@ with col3:
                 const data = [new ClipboardItem({{ [htmlType]: blob, 'text/plain': blob }})];
                 await navigator.clipboard.write(data);
                 
-                // 버튼 피드백 (알림창 대신 글자 변경)
+                // 버튼 피드백
                 const btn = document.getElementById('copyTableBtn');
                 const originalText = btn.innerText;
                 btn.innerText = "✅ 복사 완료!";
-                btn.style.borderColor = "#ff4b4b";
                 setTimeout(() => {{
                     btn.innerText = originalText;
-                    btn.style.borderColor = "rgba(49, 51, 63, 0.2)";
-                }}, 2000);
+                }}, 1500);
             }} catch (err) {{
                 console.error('복사 실패:', err);
             }}
