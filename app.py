@@ -38,19 +38,17 @@ def save_data(df):
         st.error(f"❌ 저장 오류: {e}")
         return False
 
-# 4. 이미지 변환 함수 (줄바꿈 및 높이 대폭 강화)
+# 4. 이미지 변환 함수 (줄바꿈 대폭 강화 - 10자 기준)
 def df_to_image(df):
     wrapped_df = df.copy()
-    # 글자 수 12자마다 줄바꿈 (2줄 이상 확보 유도)
     for col in wrapped_df.columns:
-        wrapped_df[col] = wrapped_df[col].apply(lambda x: "\n".join(textwrap.wrap(str(x), width=12)) if len(str(x)) > 12 else x)
+        # 10자마다 줄바꿈하여 2줄 이상 확보
+        wrapped_df[col] = wrapped_df[col].apply(lambda x: "\n".join(textwrap.wrap(str(x), width=10)) if len(str(x)) > 10 else x)
 
     num_rows, num_cols = wrapped_df.shape
-    # 이미지 높이를 더 넉넉하게 설정 (줄바꿈 대비)
-    fig, ax = plt.subplots(figsize=(num_cols * 3.0, (num_rows + 1) * 1.5))
+    fig, ax = plt.subplots(figsize=(num_cols * 3.2, (num_rows + 1) * 2.0))
     ax.axis('off')
 
-    # 한글 폰트 설정
     import matplotlib.font_manager as fm
     for font in ['NanumGothic', 'Malgun Gothic', 'AppleGothic', 'sans-serif']:
         if font in [f.name for f in fm.fontManager.ttflist]:
@@ -59,9 +57,9 @@ def df_to_image(df):
 
     table = ax.table(cellText=wrapped_df.values, colLabels=wrapped_df.columns, loc='center', cellLoc='center')
     table.auto_set_font_size(False)
-    table.set_fontsize(14)
-    # 셀 높이(scale)를 4.5로 높여서 기본 2~3줄 공간 확보
-    table.scale(1, 4.5)
+    table.set_fontsize(15)
+    # 셀 높이(scale)를 5.5로 대폭 높여서 2줄을 기본 할당
+    table.scale(1, 5.5)
 
     for (row, col), cell in table.get_celld().items():
         if row == 0:
@@ -70,13 +68,37 @@ def df_to_image(df):
         cell.set_edgecolor('#333333')
 
     buf = io.BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.2, dpi=300, transparent=True)
+    plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.3, dpi=300, transparent=True)
     plt.close(fig)
     buf.seek(0)
     return buf
 
 # 5. UI 구성
 st.set_page_config(page_title="음료생산기술팀 프로젝트 보드", layout="wide")
+
+# 줄바꿈을 위한 커스텀 CSS (웹 화면 미리보기용)
+st.markdown("""
+    <style>
+    .wrapped-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: sans-serif;
+    }
+    .wrapped-table th, .wrapped-table td {
+        border: 1px solid #ddd;
+        padding: 12px;
+        text-align: center;
+        white-space: pre-wrap; /* 이 설정이 핵심: 자동 줄바꿈 */
+        word-break: break-all;
+    }
+    .wrapped-table th {
+        background-color: #4c78a8;
+        color: white;
+        font-weight: bold;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 st.title("🚀 음료생산기술팀 AI프로젝트 진행현황")
 
 # 날짜 선택
@@ -92,37 +114,35 @@ st.divider()
 # 데이터 로드
 df = load_data()
 
-# 항목명 수정 섹션
+# 항목명 수정
 with st.expander("⚙️ 표 항목 이름 수정"):
     new_cols = []
     cols = st.columns(len(df.columns))
     for i, name in enumerate(df.columns):
-        with cols[i]:
-            new_cols.append(st.text_input(f"항목 {i+1}", value=name, key=f"c{i}"))
+        with cols[i]: new_cols.append(st.text_input(f"항목 {i+1}", value=name, key=f"c{i}"))
     if st.button("✅ 항목 이름 저장"):
         df.columns = new_cols
-        if save_data(df):
-            st.success("항목명이 변경되었습니다.")
-            st.rerun()
+        if save_data(df): st.rerun()
 
-st.subheader(f"📊 {year}년 {month}월 {week} 실시간 현황")
+# 편집기 (여기선 한 줄로 보임)
+st.subheader("✍️ 데이터 편집 (칸을 눌러 수정하세요)")
+edited_df = st.data_editor(df, num_rows="fixed", use_container_width=True, hide_index=True)
 
-# 표 편집기 설정 (너비를 넉넉하게 조정)
-column_config = {}
-for col in df.columns:
-    if "진척률" in col or "이름" in col:
-        column_config[col] = st.column_config.Column(width="small")
-    else:
-        # 주요 내용 칸은 대형(large)으로 설정하여 짤림 최소화
-        column_config[col] = st.column_config.Column(width="large")
+st.divider()
 
-edited_df = st.data_editor(
-    df, 
-    num_rows="fixed", 
-    use_container_width=True, 
-    hide_index=True,
-    column_config=column_config
-)
+# 🚀 줄바꿈 미리보기 (여기가 엑셀처럼 보임)
+st.subheader(f"👀 {year}년 {month}월 {week} 줄바꿈 미리보기 (이미지 저장 결과)")
+html_table = f"<table class='wrapped-table'><thead><tr>"
+for col in edited_df.columns: html_table += f"<th>{col}</th>"
+html_table += "</tr></thead><tbody>"
+for _, row in edited_df.iterrows():
+    html_table += "<tr>"
+    for val in row: html_table += f"<td>{val}</td>"
+    html_table += "</tr>"
+html_table += "</tbody></table>"
+st.markdown(html_table, unsafe_allow_html=True)
+
+st.write("") # 공백
 
 # 하단 버튼
 c1, c2 = st.columns(2)
@@ -135,5 +155,4 @@ with c2:
     img_buf = df_to_image(edited_df)
     st.download_button("🖼️ 이미지 파일 저장", data=img_buf, file_name=f"Project_{year}_{month}_{week}.png", mime="image/png", use_container_width=True)
 
-st.info("💡 팁: 표의 칸이 좁아 보인다면 칸 경계선을 마우스로 드래그해서 넓힐 수 있습니다.")
 st.divider()
