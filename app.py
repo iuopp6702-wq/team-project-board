@@ -4,21 +4,27 @@ import matplotlib.pyplot as plt
 import io
 import os
 import datetime
-
-from streamlit_gsheets import GSheetsConnection
+import requests
+import json
+import textwrap
 
 # 1. 설정 및 구글 시트 연결
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1zTdSMdir4X_h8u4u9w2zN0AAm-4Ir14OU55rSgENaOk/edit?usp=sharing"
+# 시트 ID 추출하여 CSV 다운로드 주소로 변환 (비밀번호 없이 읽기 가능)
+SHEET_ID = "1zTdSMdir4X_h8u4u9w2zN0AAm-4Ir14OU55rSgENaOk"
+CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 
-# 2. 데이터 불러오기 및 초기화 함수 (구글 시트 연동)
+# 🚀 [설정 완료] 구글 앱스 스크립트 웹 앱 URL (사용자가 제공한 URL로 고정)
+SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyZrclcILnQO7b1LsfrbNoCVfpbhMgP2O6ZXLRC051Cx0YVcwmTl8-gSr5lmEPx2Gmc/exec"
+
+# 2. 데이터 불러오기 및 초기화 함수 (CSV 직접 읽기 방식)
 def load_data():
-    conn = st.connection("gsheets", type=GSheetsConnection)
     try:
-        # 구글 시트에서 데이터 읽기
-        df = conn.read(spreadsheet=SHEET_URL, ttl=0) # ttl=0으로 실시간 데이터 로드
+        # 구글 시트에서 CSV 형식으로 데이터 읽기 (캐시 방지를 위해 랜덤 파라미터 추가)
+        df = pd.read_csv(f"{CSV_URL}&cache_bust={datetime.datetime.now().timestamp()}")
         return df
-    except Exception:
-        # 시트가 비어있거나 오류 시 초기 데이터 생성
+    except Exception as e:
+        # 연결 전이거나 오류 시 안내 메시지 및 기본 데이터 반환
+        st.warning("⚠️ 구글 시트 데이터를 가져오는 중입니다. 잠시만 기다려주세요.")
         data = {
             '이름': ['팀원1', '팀원2', '팀원3', '팀원4', '팀원5'],
             '프로젝트명': ['미입력'] * 5,
@@ -29,11 +35,27 @@ def load_data():
         }
         return pd.DataFrame(data)
 
-# 데이터 업데이트 함수 (구글 시트 저장)
+# 데이터 업데이트 함수 (구글 앱스 스크립트 전송 방식)
 def save_data(df):
-    conn = st.connection("gsheets", type=GSheetsConnection)
-    conn.update(spreadsheet=SHEET_URL, data=df)
-import textwrap
+    if not SCRIPT_URL:
+        st.error("❌ 설정 오류: 구글 앱스 스크립트 URL이 설정되지 않았습니다.")
+        return False
+        
+    try:
+        # 판다스 데이터를 JSON 형식으로 변환
+        data_json = df.to_json(orient='records', force_ascii=False)
+        # 앱스 스크립트로 POST 요청 전송 (웹 앱 URL이므로 인증 불필요)
+        response = requests.post(SCRIPT_URL, data=data_json, headers={'Content-Type': 'application/json'})
+        
+        if response.status_code == 200:
+            st.success("✅ 데이터가 구글 시트에 안전하게 저장되었습니다!")
+            return True
+        else:
+            st.error(f"❌ 저장 실패! 서버 응답: {response.status_code}")
+            return False
+    except Exception as e:
+        st.error(f"❌ 저장 중 오류 발생: {e}")
+        return False
 
 # 3. 표를 이미지로 변환하는 함수 (줄바꿈 기능 추가)
 def df_to_image(df):
