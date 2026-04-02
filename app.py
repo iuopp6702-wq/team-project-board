@@ -16,9 +16,12 @@ SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyZrclcILnQO7b1LsfrbNoCVfp
 def load_data():
     try:
         url = f"{CSV_URL}&cache_bust={datetime.datetime.now().timestamp()}"
-        return pd.read_csv(url)
+        df = pd.read_csv(url)
+        # 데이터가 비어있거나 컬럼수가 부족할 경우를 대비해 기본형태 보장
+        if df.empty or len(df.columns) < 6:
+            raise Exception("Invalid Data")
+        return df
     except Exception:
-        st.warning("⚠️ 데이터를 가져오는 중입니다...")
         return pd.DataFrame({
             '이름': ['팀원1', '팀원2', '팀원3', '팀원4', '팀원5'],
             '프로젝트명': ['미입력'] * 5,
@@ -38,7 +41,7 @@ def save_data(df):
         st.error(f"❌ 저장 오류: {e}")
         return False
 
-# 4. 이미지 변환 함수 (줄바꿈 대폭 강화)
+# 4. 이미지 변환 함수
 def df_to_image(df):
     wrapped_df = df.copy()
     for col in wrapped_df.columns:
@@ -57,7 +60,7 @@ def df_to_image(df):
     table = ax.table(cellText=wrapped_df.values, colLabels=wrapped_df.columns, loc='center', cellLoc='center')
     table.auto_set_font_size(False)
     table.set_fontsize(13)
-    table.scale(1, 5.0) # 넉넉한 셀 높이
+    table.scale(1, 5.0)
 
     for (row, col), cell in table.get_celld().items():
         if row == 0:
@@ -74,7 +77,7 @@ def df_to_image(df):
 # 5. UI 구성
 st.set_page_config(page_title="음료생산기술팀 프로젝트 보드", layout="wide")
 
-# 사이드바 설정 (항목 수정 기능을 사이드바로 이동하여 깔끔하게 정리)
+# 사이드바 설정
 with st.sidebar:
     st.header("⚙️ 관리 설정")
     df_raw = load_data()
@@ -100,7 +103,7 @@ with d_col4: st.markdown(f"<div style='text-align: right; padding-top: 35px; col
 
 st.divider()
 
-# 🚀 [핵심 수정] 엑셀 스타일 자동 줄바꿈 입력판
+# 🚀 에러 수정된 입력판
 st.subheader(f"📊 {year}년 {month}월 {week} 실시간 편집 (자동 줄바꿈)")
 
 # 헤더 출력
@@ -108,18 +111,25 @@ header_cols = st.columns([1, 2, 2, 2, 2, 1])
 for i, col_name in enumerate(df_raw.columns):
     header_cols[i].markdown(f"**{col_name}**")
 
-# 본문 입력 그리드
+# 본문 입력 그리드 (iloc 사용하여 KeyError 방지)
 updated_rows = []
 for i, row in df_raw.iterrows():
     row_cols = st.columns([1, 2, 2, 2, 2, 1])
     
-    # 각 칸을 text_area로 만들어서 자동 줄바꿈 및 높이 확보
-    name = row_cols[0].text_input("이름", value=row[0], key=f"name_{i}", label_visibility="collapsed")
-    proj = row_cols[1].text_area("프로젝트명", value=row[1], key=f"proj_{i}", height=100, label_visibility="collapsed")
-    last = row_cols[2].text_area("지난주", value=row[2], key=f"last_{i}", height=100, label_visibility="collapsed")
-    prog = row_cols[3].text_area("진척상황", value=row[3], key=f"prog_{i}", height=100, label_visibility="collapsed")
-    goal = row_cols[4].text_area("최종목표", value=row[4], key=f"goal_{i}", height=100, label_visibility="collapsed")
-    rate = row_cols[5].number_input("진척률", value=int(row[5]) if str(row[5]).isdigit() else 0, key=f"rate_{i}", label_visibility="collapsed")
+    # .iloc를 사용하여 순서대로 데이터를 안전하게 가져옴
+    name = row_cols[0].text_input("이름", value=row.iloc[0], key=f"name_{i}", label_visibility="collapsed")
+    proj = row_cols[1].text_area("프로젝트명", value=row.iloc[1], key=f"proj_{i}", height=100, label_visibility="collapsed")
+    last = row_cols[2].text_area("지난주", value=row.iloc[2], key=f"last_{i}", height=100, label_visibility="collapsed")
+    prog = row_cols[3].text_area("진척상황", value=row.iloc[3], key=f"prog_{i}", height=100, label_visibility="collapsed")
+    goal = row_cols[4].text_area("최종목표", value=row.iloc[4], key=f"goal_{i}", height=100, label_visibility="collapsed")
+    
+    # 진척률 숫자 처리 (안전하게)
+    raw_rate = row.iloc[5]
+    try:
+        rate_val = int(float(raw_rate))
+    except:
+        rate_val = 0
+    rate = row_cols[5].number_input("진척률", value=rate_val, key=f"rate_{i}", label_visibility="collapsed")
     
     updated_rows.append([name, proj, last, prog, goal, rate])
 
