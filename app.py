@@ -10,7 +10,7 @@ import textwrap
 # 1. 설정 및 구글 시트 연결
 SHEET_ID = "1zTdSMdir4X_h8u4u9w2zN0AAm-4Ir14OU55rSgENaOk"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
-SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyZrclcILnQO7b1LsfrbNoCVfpbhMgP2O6ZXLRC051Cx0YVcwmTl8-gSr5lmEPx2Gmc/exec"
+SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9Wuiw1cDH47fvbEtigKz-yXNqVZz_KTHNcBeQkmxz4Xdy9BBgWoKcasWKLP1c4acM/exec"
 
 # 2. 데이터 불러오기 함수
 def load_data():
