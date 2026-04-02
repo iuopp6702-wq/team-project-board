@@ -38,19 +38,16 @@ def save_data(df):
         st.error(f"❌ 저장 오류: {e}")
         return False
 
-# 4. 이미지 변환 함수 (인당 2줄 높이 넉넉히 할당)
+# 4. 이미지 변환 함수 (줄바꿈 대폭 강화)
 def df_to_image(df):
     wrapped_df = df.copy()
     for col in wrapped_df.columns:
-        # 약 13자마다 줄바꿈하여 가독성 확보
-        wrapped_df[col] = wrapped_df[col].apply(lambda x: "\n".join(textwrap.wrap(str(x), width=13)) if len(str(x)) > 13 else x)
+        wrapped_df[col] = wrapped_df[col].apply(lambda x: "\n".join(textwrap.wrap(str(x), width=12)) if len(str(x)) > 12 else x)
 
     num_rows, num_cols = wrapped_df.shape
-    # 이미지 높이를 인당 2줄 이상 충분히 나오도록 설정
-    fig, ax = plt.subplots(figsize=(num_cols * 2.8, (num_rows + 1) * 1.6))
+    fig, ax = plt.subplots(figsize=(num_cols * 3.0, (num_rows + 1) * 1.8))
     ax.axis('off')
 
-    # 한글 폰트 설정
     import matplotlib.font_manager as fm
     for font in ['NanumGothic', 'Malgun Gothic', 'AppleGothic', 'sans-serif']:
         if font in [f.name for f in fm.fontManager.ttflist]:
@@ -59,9 +56,8 @@ def df_to_image(df):
 
     table = ax.table(cellText=wrapped_df.values, colLabels=wrapped_df.columns, loc='center', cellLoc='center')
     table.auto_set_font_size(False)
-    table.set_fontsize(14)
-    # 셀 높이(scale)를 5.0으로 설정하여 인당 2줄 공간 확보
-    table.scale(1, 5.0)
+    table.set_fontsize(13)
+    table.scale(1, 5.0) # 넉넉한 셀 높이
 
     for (row, col), cell in table.get_celld().items():
         if row == 0:
@@ -77,6 +73,21 @@ def df_to_image(df):
 
 # 5. UI 구성
 st.set_page_config(page_title="음료생산기술팀 프로젝트 보드", layout="wide")
+
+# 사이드바 설정 (항목 수정 기능을 사이드바로 이동하여 깔끔하게 정리)
+with st.sidebar:
+    st.header("⚙️ 관리 설정")
+    df_raw = load_data()
+    with st.expander("표 항목 이름 수정"):
+        new_cols = []
+        for i, name in enumerate(df_raw.columns):
+            new_cols.append(st.text_input(f"항목 {i+1}", value=name, key=f"side_c{i}"))
+        if st.button("✅ 항목 이름 저장"):
+            df_raw.columns = new_cols
+            if save_data(df_raw): st.rerun()
+    st.divider()
+    st.info("💡 팁: 입력 칸에서 Enter를 누르면 줄바꿈이 됩니다.")
+
 st.title("🚀 음료생산기술팀 AI프로젝트 진행현황")
 
 # 날짜 선택
@@ -89,46 +100,43 @@ with d_col4: st.markdown(f"<div style='text-align: right; padding-top: 35px; col
 
 st.divider()
 
-# 데이터 로드
-df = load_data()
+# 🚀 [핵심 수정] 엑셀 스타일 자동 줄바꿈 입력판
+st.subheader(f"📊 {year}년 {month}월 {week} 실시간 편집 (자동 줄바꿈)")
 
-# 표 편집기 설정 (글자가 짤리지 않게 칸을 넓게 할당)
-column_config = {}
-for col in df.columns:
-    if "진척률" in col or "이름" in col:
-        column_config[col] = st.column_config.Column(width="small")
-    else:
-        # 내용 칸을 '대형'으로 설정하여 편집 시 가독성 확보
-        column_config[col] = st.column_config.Column(width="large")
+# 헤더 출력
+header_cols = st.columns([1, 2, 2, 2, 2, 1])
+for i, col_name in enumerate(df_raw.columns):
+    header_cols[i].markdown(f"**{col_name}**")
 
-st.subheader(f"📊 {year}년 {month}월 {week} 실시간 현황")
-edited_df = st.data_editor(
-    df, 
-    num_rows="fixed", 
-    use_container_width=True, 
-    hide_index=True,
-    column_config=column_config
-)
+# 본문 입력 그리드
+updated_rows = []
+for i, row in df_raw.iterrows():
+    row_cols = st.columns([1, 2, 2, 2, 2, 1])
+    
+    # 각 칸을 text_area로 만들어서 자동 줄바꿈 및 높이 확보
+    name = row_cols[0].text_input("이름", value=row[0], key=f"name_{i}", label_visibility="collapsed")
+    proj = row_cols[1].text_area("프로젝트명", value=row[1], key=f"proj_{i}", height=100, label_visibility="collapsed")
+    last = row_cols[2].text_area("지난주", value=row[2], key=f"last_{i}", height=100, label_visibility="collapsed")
+    prog = row_cols[3].text_area("진척상황", value=row[3], key=f"prog_{i}", height=100, label_visibility="collapsed")
+    goal = row_cols[4].text_area("최종목표", value=row[4], key=f"goal_{i}", height=100, label_visibility="collapsed")
+    rate = row_cols[5].number_input("진척률", value=int(row[5]) if str(row[5]).isdigit() else 0, key=f"rate_{i}", label_visibility="collapsed")
+    
+    updated_rows.append([name, proj, last, prog, goal, rate])
+
+# 데이터프레임 변환
+edited_df = pd.DataFrame(updated_rows, columns=df_raw.columns)
+
+st.write("") # 간격
 
 # 하단 버튼
 c1, c2 = st.columns(2)
 with c1:
     if st.button("💾 변경사항 저장하기", use_container_width=True):
         if save_data(edited_df):
-            st.success("성공적으로 저장되었습니다!")
+            st.success("✅ 구글 시트에 성공적으로 저장되었습니다!")
             st.rerun()
 with c2:
     img_buf = df_to_image(edited_df)
-    st.download_button("🖼️ 이미지 파일 저장", data=img_buf, file_name=f"Project_{year}_{month}_{week}.png", mime="image/png", use_container_width=True)
+    st.download_button("🖼️ 이미지 파일 저장 (공유용)", data=img_buf, file_name=f"Project_{year}_{month}_{week}.png", mime="image/png", use_container_width=True)
 
 st.divider()
-
-# 항목명 수정 (맨 아래로 이동시켜 가독성 방해 최소화)
-with st.expander("⚙️ 표 항목 이름 수정하기"):
-    new_cols = []
-    cols = st.columns(len(df.columns))
-    for i, name in enumerate(df.columns):
-        with cols[i]: new_cols.append(st.text_input(f"항목 {i+1}", value=name, key=f"c{i}"))
-    if st.button("✅ 항목 이름 저장"):
-        df.columns = new_cols
-        if save_data(df): st.rerun()
