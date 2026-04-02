@@ -118,10 +118,10 @@ for i, row in df_raw.iterrows():
     
     # .iloc를 사용하여 순서대로 데이터를 안전하게 가져옴
     name = row_cols[0].text_input("이름", value=row.iloc[0], key=f"name_{i}", label_visibility="collapsed")
-    proj = row_cols[1].text_area("프로젝트명", value=row.iloc[1], key=f"proj_{i}", height=100, label_visibility="collapsed")
-    last = row_cols[2].text_area("지난주", value=row.iloc[2], key=f"last_{i}", height=100, label_visibility="collapsed")
-    prog = row_cols[3].text_area("진척상황", value=row.iloc[3], key=f"prog_{i}", height=100, label_visibility="collapsed")
-    goal = row_cols[4].text_area("최종목표", value=row.iloc[4], key=f"goal_{i}", height=100, label_visibility="collapsed")
+    proj = row_cols[1].text_area("프로젝트명", value=row.iloc[1], key=f"proj_{i}", height=68, label_visibility="collapsed")
+    last = row_cols[2].text_area("지난주", value=row.iloc[2], key=f"last_{i}", height=68, label_visibility="collapsed")
+    prog = row_cols[3].text_area("진척상황", value=row.iloc[3], key=f"prog_{i}", height=68, label_visibility="collapsed")
+    goal = row_cols[4].text_area("최종목표", value=row.iloc[4], key=f"goal_{i}", height=68, label_visibility="collapsed")
     
     # 진척률 숫자 처리 (안전하게)
     raw_rate = row.iloc[5]
