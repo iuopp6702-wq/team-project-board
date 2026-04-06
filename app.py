@@ -1,89 +1,171 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
+import io
+import os
 import datetime
 import requests
+import textwrap
 
-# 1. 설정 (제공해주신 URL 적용)
+# 1. 설정 및 구글 시트 연결
 SHEET_ID = "1zTdSMdir4X_h8u4u9w2zN0AAm-4Ir14OU55rSgENaOk"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9Wuiw1cDH47fvbEtigKz-yXNqVZz_KTHNcBeQkmxz4Xdy9BBgWoKcasWKLP1c4acM/exec"
-
-st.set_page_config(page_title="음료생산기술팀 프로젝트 보드", layout="wide")
 
 # 2. 데이터 불러오기 함수
 def load_data():
     try:
         url = f"{CSV_URL}&cache_bust={datetime.datetime.now().timestamp()}"
         df = pd.read_csv(url)
-        if df.empty: raise Exception
-        
-        # '주차' 컬럼이 없으면 생성
-        if '주차' not in df.columns:
-            df.insert(0, '주차', '미입력')
-            
+        if df.empty or len(df.columns) < 6: raise Exception("Invalid Data")
         return df
-    except:
+    except Exception:
         return pd.DataFrame({
-            '주차': ['미입력']*5,
             '이름': ['팀원1', '팀원2', '팀원3', '팀원4', '팀원5'],
-            '프로젝트명': ['미입력']*5, 
-            '지난주': ['미입력']*5, 
-            '진척상황': ['미입력']*5, 
-            '최종목표': ['미입력']*5, 
-            '진척률(%)': [0]*5
+            '프로젝트명': ['미입력'] * 5,
+            '지난주': ['미입력'] * 5,
+            '진척상황': ['미입력'] * 5,
+            '최종목표': ['미입력'] * 5,
+            '진척률(%)': [0] * 5
         })
 
 # 3. 데이터 저장 함수
 def save_data(df):
     try:
         data_json = df.to_json(orient='records', force_ascii=False)
-        response = requests.post(SCRIPT_URL, data=data_json.encode('utf-8'))
+        response = requests.post(SCRIPT_URL, data=data_json, headers={'Content-Type': 'application/json'})
         return response.status_code == 200
-    except:
+    except Exception as e:
+        st.error(f"❌ 저장 오류: {e}")
         return False
 
-st.title("🚀 음료생산기술팀 AI프로젝트 현황")
-df_raw = load_data()
+# 4. 이미지 변환 함수
+def df_to_image(df):
+    wrapped_df = df.copy()
+    for col in wrapped_df.columns:
+        wrapped_df[col] = wrapped_df[col].apply(lambda x: "\n".join(textwrap.wrap(str(x), width=12)) if len(str(x)) > 12 else x)
+    num_rows, num_cols = wrapped_df.shape
+    fig, ax = plt.subplots(figsize=(num_cols * 3.0, (num_rows + 1) * 1.8))
+    ax.axis('off')
+    import matplotlib.font_manager as fm
+    for font in ['NanumGothic', 'Malgun Gothic', 'AppleGothic', 'sans-serif']:
+        if font in [f.name for f in fm.fontManager.ttflist]:
+            plt.rcParams['font.family'] = font
+            break
+    table = ax.table(cellText=wrapped_df.values, colLabels=wrapped_df.columns, loc='center', cellLoc='center')
+    table.auto_set_font_size(False)
+    table.set_fontsize(13)
+    table.scale(1, 5.0)
+    for (row, col), cell in table.get_celld().items():
+        if row == 0:
+            cell.set_text_props(weight='bold', color='white')
+            cell.set_facecolor('#4c78a8')
+        cell.set_edgecolor('#333333')
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.2, dpi=300, transparent=True)
+    plt.close(fig)
+    buf.seek(0)
+    return buf
 
-# 4. 입력 화면 구성 (헤더 포함)
-st.markdown("---")
-# 비율 조정: [주차(0.8), 이름(0.7), 프로젝트(2), 지난주(2.5), 이번주(2.5), 목표(2.5), 진척(0.6)]
-h_cols = st.columns([0.8, 0.7, 2, 2.5, 2.5, 2.5, 0.6])
-headers = ["주차", "이름", "프로젝트명", "지난주 성과", "이번주 계획", "최종 목표", "진척(%)"]
-for i, h in enumerate(headers):
-    h_cols[i].write(f"**{h}**")
+# 5. UI 구성 및 모바일 최적화 CSS
+st.set_page_config(page_title="음료생산기술팀 프로젝트 보드", layout="wide")
 
+st.markdown("""
+<style>
+    /* 데스크탑: 입력 칸의 라벨을 숨겨서 표처럼 보이게 함 */
+    @media (min-width: 800px) {
+        div[data-testid="column"] label {
+            display: none !important;
+        }
+    }
+    
+    /* 모바일: 상단 헤더 줄을 숨기고 카드 간격 조정 */
+    @media (max-width: 799px) {
+        .desktop-header {
+            display: none !important;
+        }
+        div[data-testid="column"] {
+            margin-bottom: -10px;
+        }
+    }
+    
+    /* 카드 스타일 보강 */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background-color: #f9f9f9;
+        border-radius: 10px;
+        padding: 15px !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# 사이드바
+with st.sidebar:
+    st.header("⚙️ 관리 설정")
+    df_raw = load_data()
+    with st.expander("표 항목 이름 수정"):
+        new_cols = []
+        for i, name in enumerate(df_raw.columns):
+            new_cols.append(st.text_input(f"항목 {i+1}", value=name, key=f"side_c{i}"))
+        if st.button("✅ 항목 이름 저장"):
+            df_raw.columns = new_cols
+            if save_data(df_raw): st.rerun()
+    st.divider()
+    st.info("💡 모바일에서는 각 칸에 이름이 표시됩니다.")
+
+st.title("🚀 음료생산기술팀 AI프로젝트 진행현황")
+
+# 날짜 선택
+now = datetime.date.today()
+d_col1, d_col2, d_col3, d_col4 = st.columns([1, 1, 1, 2])
+with d_col1: year = st.selectbox("📅 년도", range(now.year-1, now.year+2), index=1)
+with d_col2: month = st.selectbox("📆 월", range(1, 13), index=now.month-1)
+with d_col3: week = st.selectbox("📅 주차", [f"{i}주차" for i in range(1, 6)], index=0)
+with d_col4: st.markdown(f"<div style='text-align: right; padding-top: 35px; color: gray;'>오늘: {now.strftime('%Y-%m-%d')}</div>", unsafe_allow_html=True)
+
+st.divider()
+
+# 🚀 반응형 입력판
+st.subheader(f"📊 {year}년 {month}월 {week} 실시간 현황")
+
+# 데스크탑용 헤더 (모바일에서는 숨겨짐)
+st.markdown('<div class="desktop-header">', unsafe_allow_html=True)
+header_cols = st.columns([1, 2, 2, 2, 2, 1])
+for i, col_name in enumerate(df_raw.columns):
+    header_cols[i].markdown(f"**{col_name}**")
+st.markdown('</div>', unsafe_allow_html=True)
+
+# 본문 입력 그리드 (카드 형태)
 updated_rows = []
 for i, row in df_raw.iterrows():
-    with st.container():
-        cols = st.columns([0.8, 0.7, 2, 2.5, 2.5, 2.5, 0.6])
+    # 각 팀원을 테두리가 있는 컨테이너(카드)로 묶음
+    with st.container(border=True):
+        row_cols = st.columns([1, 2, 2, 2, 2, 1])
         
-        # 각 데이터 타입에 맞춰 안전하게 불러오기
-        val_week = str(row.get('주차', '미입력'))
-        val_name = str(row.get('이름', ''))
-        val_proj = str(row.get('프로젝트명', ''))
-        val_last = str(row.get('지난주', ''))
-        val_prog = str(row.get('진척상황', ''))
-        val_goal = str(row.get('최종목표', ''))
-        val_rate = str(row.get('진척률(%)', '0'))
-
-        week = cols[0].text_input(f"w{i}", value=val_week, label_visibility="collapsed")
-        name = cols[1].text_input(f"n{i}", value=val_name, label_visibility="collapsed")
-        proj = cols[2].text_area(f"p{i}", value=val_proj, height=100, label_visibility="collapsed")
-        last = cols[3].text_area(f"l{i}", value=val_last, height=100, label_visibility="collapsed")
-        prog = cols[4].text_area(f"pr{i}", value=val_prog, height=100, label_visibility="collapsed")
-        goal = cols[5].text_area(f"g{i}", value=val_goal, height=100, label_visibility="collapsed")
-        rate = cols[6].text_input(f"r{i}", value=val_rate, label_visibility="collapsed")
+        name = row_cols[0].text_input(df_raw.columns[0], value=row.iloc[0], key=f"name_{i}")
+        proj = row_cols[1].text_area(df_raw.columns[1], value=row.iloc[1], key=f"proj_{i}", height=68)
+        last = row_cols[2].text_area(df_raw.columns[2], value=row.iloc[2], key=f"last_{i}", height=68)
+        prog = row_cols[3].text_area(df_raw.columns[3], value=row.iloc[3], key=f"prog_{i}", height=68)
+        goal = row_cols[4].text_area(df_raw.columns[4], value=row.iloc[4], key=f"goal_{i}", height=68)
         
-        updated_rows.append([week, name, proj, last, prog, goal, rate])
+        raw_rate = row.iloc[5]
+        try: rate_val = int(float(raw_rate))
+        except: rate_val = 0
+        rate = row_cols[5].number_input(df_raw.columns[5], value=rate_val, key=f"rate_{i}")
+        
+        updated_rows.append([name, proj, last, prog, goal, rate])
 
-# 5. 저장 버튼
+edited_df = pd.DataFrame(updated_rows, columns=df_raw.columns)
+
+# 하단 버튼
 st.write("")
-if st.button("💾 변경사항 저장하기", use_container_width=True):
-    # 컬럼 순서를 맞춰서 저장
-    new_df = pd.DataFrame(updated_rows, columns=['주차', '이름', '프로젝트명', '지난주', '진척상황', '최종목표', '진척률(%)'])
-    if save_data(new_df):
-        st.success("✅ 구글 시트에 성공적으로 저장되었습니다!")
-        st.rerun()
-    else:
-        st.error("❌ 저장 실패! 구글 앱 스크립트 설정을 확인해주세요.")
+c1, c2 = st.columns(2)
+with c1:
+    if st.button("💾 변경사항 저장하기", use_container_width=True):
+        if save_data(edited_df):
+            st.success("✅ 성공적으로 저장되었습니다!")
+            st.rerun()
+with c2:
+    img_buf = df_to_image(edited_df)
+    st.download_button("🖼️ 이미지 파일 저장 (공유용)", data=img_buf, file_name=f"Project_{year}_{month}_{week}.png", mime="image/png", use_container_width=True)
+
+st.divider()
