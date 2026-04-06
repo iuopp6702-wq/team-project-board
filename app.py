@@ -12,7 +12,6 @@ SHEET_ID = "1zTdSMdir4X_h8u4u9w2zN0AAm-4Ir14OU55rSgENaOk"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9Wuiw1cDH47fvbEtigKz-yXNqVZz_KTHNcBeQkmxz4Xdy9BBgWoKcasWKLP1c4acM/exec"
 
-# 팀원 리스트 고정 (주차별 데이터가 없을 때 기본값으로 사용)
 TEAM_MEMBERS = ['조영준', '최광수', '박소연', '차관호', '임완수']
 
 # 2. 데이터 불러오기 함수
@@ -22,7 +21,6 @@ def load_data():
         df = pd.read_csv(url)
         return df
     except Exception:
-        # 파일이 없거나 오류 시 빈 데이터프레임 반환
         return pd.DataFrame(columns=['주차ID', '이름', '프로젝트명', '지난주', '진척상황', '최종목표', '진척률(%)'])
 
 # 3. 데이터 저장 함수
@@ -37,7 +35,6 @@ def save_data(df):
 
 # 4. 이미지 변환 함수
 def df_to_image(df):
-    # 이미지 저장용으로는 '주차ID'를 제외하고 깔끔하게 출력
     display_df = df.drop(columns=['주차ID']) if '주차ID' in df.columns else df
     wrapped_df = display_df.copy()
     for col in wrapped_df.columns:
@@ -100,36 +97,41 @@ with d_col2: month = st.selectbox("📆 월", range(1, 13), index=now.month-1)
 with d_col3: week = st.selectbox("📅 주차", [f"{i}주차" for i in range(1, 6)], index=0)
 with d_col4: st.markdown(f"<div style='text-align: right; padding-top: 35px; color: gray;'>오늘: {now.strftime('%Y-%m-%d')}</div>", unsafe_allow_html=True)
 
-# 현재 선택된 주차의 고유 ID 생성
 target_id = f"{year}-{month}-{week}"
 
 st.divider()
 
-# 데이터 로드 및 필터링
+# 데이터 로드
 full_df = load_data()
 
-# 1. '주차ID' 컬럼이 없으면 생성 (기존 데이터 호환용)
-if '주차ID' not in full_df.columns:
-    full_df['주차ID'] = target_id
-
-# 2. 현재 주차의 데이터만 필터링
+# 1. 해당 주차 데이터가 있는지 확인
 week_df = full_df[full_df['주차ID'] == target_id].copy()
 
-# 3. 만약 해당 주차의 데이터가 하나도 없다면, 팀원 리스트를 기반으로 초기 데이터 생성
+# 2. 해당 주차 데이터가 없으면, '가장 최근에 저장된 데이터'를 가져와서 복사
 if week_df.empty:
-    week_df = pd.DataFrame({
-        '주차ID': [target_id] * len(TEAM_MEMBERS),
-        '이름': TEAM_MEMBERS,
-        '프로젝트명': ['미입력'] * len(TEAM_MEMBERS),
-        '지난주': ['미입력'] * len(TEAM_MEMBERS),
-        '진척상황': ['미입력'] * len(TEAM_MEMBERS),
-        '최종목표': ['미입력'] * len(TEAM_MEMBERS),
-        '진척률(%)': ['0'] * len(TEAM_MEMBERS)
-    })
+    if not full_df.empty:
+        # 가장 마지막 행들의 데이터를 가져옴 (최신 상태 복사)
+        latest_ids = full_df['주차ID'].unique()
+        if len(latest_ids) > 0:
+            last_id = latest_ids[-1]
+            week_df = full_df[full_df['주차ID'] == last_id].copy()
+            week_df['주차ID'] = target_id # 주차 라벨만 현재 선택된 것으로 교체
+    
+    # 그래도 데이터가 없으면(완전 처음일 때) 기본값 생성
+    if week_df.empty:
+        week_df = pd.DataFrame({
+            '주차ID': [target_id] * len(TEAM_MEMBERS),
+            '이름': TEAM_MEMBERS,
+            '프로젝트명': ['미입력'] * len(TEAM_MEMBERS),
+            '지난주': ['미입력'] * len(TEAM_MEMBERS),
+            '진척상황': ['미입력'] * len(TEAM_MEMBERS),
+            '최종목표': ['미입력'] * len(TEAM_MEMBERS),
+            '진척률(%)': ['0'] * len(TEAM_MEMBERS)
+        })
 
 st.subheader(f"📊 {year}년 {month}월 {week} 실시간 현황")
 
-# 데스크탑용 헤더 (슬림한 비율 적용: [이름(0.7), 프로젝트(2), 지난주(2.5), 이번주(2.5), 목표(2.5), 진척(0.6)])
+# 헤더 (슬림 비율 유지)
 st.markdown('<div class="desktop-header">', unsafe_allow_html=True)
 header_cols = st.columns([0.7, 2, 2.5, 2.5, 2.5, 0.6])
 headers = ["이름", "프로젝트명", "지난주 성과", "이번주 계획", "최종 목표", "진척(%)"]
@@ -152,25 +154,21 @@ for i, row in week_df.iterrows():
         
         updated_rows.append([target_id, name, proj, last, prog, goal, rate])
 
-# 하단 버튼 로직
+# 저장 버튼
 st.write("")
 c1, c2 = st.columns(2)
 
 with c1:
     if st.button("💾 변경사항 저장하기", use_container_width=True):
-        # 1. 현재 주차의 수정된 데이터 생성
         new_week_df = pd.DataFrame(updated_rows, columns=['주차ID', '이름', '프로젝트명', '지난주', '진척상황', '최종목표', '진척률(%)'])
-        
-        # 2. 전체 데이터에서 현재 주차분을 제외한 나머지 데이터와 합치기 (데이터 누적)
         other_weeks_df = full_df[full_df['주차ID'] != target_id]
         final_df = pd.concat([other_weeks_df, new_week_df], ignore_index=True)
         
         if save_data(final_df):
-            st.success(f"✅ {target_id} 데이터가 성공적으로 저장되었습니다!")
+            st.success(f"✅ {target_id} 데이터가 저장되었습니다!")
             st.rerun()
 
 with c2:
-    # 현재 화면에 보이는 데이터만 이미지로 저장
     current_edit_df = pd.DataFrame(updated_rows, columns=['주차ID', '이름', '프로젝트명', '지난주', '진척상황', '최종목표', '진척률(%)'])
     img_buf = df_to_image(current_edit_df)
     st.download_button("🖼️ 이미지 파일 저장 (공유용)", data=img_buf, file_name=f"Project_{target_id}.png", mime="image/png", use_container_width=True)
