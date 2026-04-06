@@ -89,13 +89,35 @@ st.markdown("""
 
 st.title("🚀 음료생산기술팀 AI프로젝트 진행현황")
 
-# 날짜 선택
+# --- 주차 기억 기능 (URL 파라미터 활용) ---
 now = datetime.date.today()
+params = st.query_params
+
+# 초기 인덱스 설정
+def_year_idx = 1 # 올해
+def_month_idx = now.month - 1
+def_week_idx = 0
+
+# URL에 저장된 값이 있으면 해당 인덱스로 변경
+if "year" in params:
+    try: def_year_idx = list(range(now.year-1, now.year+2)).index(int(params["year"]))
+    except: pass
+if "month" in params:
+    try: def_month_idx = int(params["month"]) - 1
+    except: pass
+if "week" in params:
+    try: def_week_idx = [f"{i}주차" for i in range(1, 6)].index(params["week"])
+    except: pass
+
+# 날짜 선택 UI
 d_col1, d_col2, d_col3, d_col4 = st.columns([1, 1, 1, 2])
-with d_col1: year = st.selectbox("📅 년도", range(now.year-1, now.year+2), index=1)
-with d_col2: month = st.selectbox("📆 월", range(1, 13), index=now.month-1)
-with d_col3: week = st.selectbox("📅 주차", [f"{i}주차" for i in range(1, 6)], index=0)
+with d_col1: year = st.selectbox("📅 년도", range(now.year-1, now.year+2), index=def_year_idx)
+with d_col2: month = st.selectbox("📆 월", range(1, 13), index=def_month_idx)
+with d_col3: week = st.selectbox("📅 주차", [f"{i}주차" for i in range(1, 6)], index=def_week_idx)
 with d_col4: st.markdown(f"<div style='text-align: right; padding-top: 35px; color: gray;'>오늘: {now.strftime('%Y-%m-%d')}</div>", unsafe_allow_html=True)
+
+# 선택 값이 바뀔 때마다 URL 업데이트
+st.query_params.update(year=year, month=month, week=week)
 
 target_id = f"{year}-{month}-{week}"
 
@@ -110,14 +132,12 @@ week_df = full_df[full_df['주차ID'] == target_id].copy()
 # 2. 해당 주차 데이터가 없으면, '가장 최근에 저장된 데이터'를 가져와서 복사
 if week_df.empty:
     if not full_df.empty:
-        # 가장 마지막 행들의 데이터를 가져옴 (최신 상태 복사)
         latest_ids = full_df['주차ID'].unique()
         if len(latest_ids) > 0:
             last_id = latest_ids[-1]
             week_df = full_df[full_df['주차ID'] == last_id].copy()
-            week_df['주차ID'] = target_id # 주차 라벨만 현재 선택된 것으로 교체
+            week_df['주차ID'] = target_id
     
-    # 그래도 데이터가 없으면(완전 처음일 때) 기본값 생성
     if week_df.empty:
         week_df = pd.DataFrame({
             '주차ID': [target_id] * len(TEAM_MEMBERS),
