@@ -148,9 +148,7 @@ for i, row in df_raw.iterrows():
         goal = row_cols[4].text_area(df_raw.columns[4], value=row.iloc[4], key=f"goal_{i}", height=68)
         
         raw_rate = row.iloc[5]
-        try: rate_val = int(float(raw_rate))
-        except: rate_val = 0
-        rate = row_cols[5].number_input(df_raw.columns[5], value=rate_val, key=f"rate_{i}")
+        rate = row_cols[5].text_input(df_raw.columns[5], value=str(raw_rate), key=f"rate_{i}")
         
         updated_rows.append([name, proj, last, prog, goal, rate])
 
