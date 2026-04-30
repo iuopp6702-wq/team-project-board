@@ -219,6 +219,15 @@ for i, row in week_df.iterrows():
         
         updated_rows.append([target_id, name, proj, last, prog, goal, rate])
 
+# 6. 실적 갱신 함수 (계획 -> 실적 이동)
+def renew_performance(t_id, num_rows):
+    for i in range(num_rows):
+        plan_key = f"pr_{t_id}_{i}"
+        result_key = f"l_{t_id}_{i}"
+        if plan_key in st.session_state:
+            st.session_state[result_key] = st.session_state[plan_key]
+            st.session_state[plan_key] = ""
+
 # 버튼 레이아웃
 st.write("")
 c1, c2, c3 = st.columns(3)
@@ -241,15 +250,12 @@ with c1:
             st.rerun()
 
 with c2:
-    if st.button("🔄 실적 갱신 (계획 → 실적)", use_container_width=True, help="이번주 계획 내용을 실적 칸으로 옮기고 계획을 비웁니다."):
-        for i in range(len(TEAM_MEMBERS)):
-            plan_key = f"pr_{target_id}_{i}"
-            result_key = f"l_{target_id}_{i}"
-            if plan_key in st.session_state and result_key in st.session_state:
-                st.session_state[result_key] = st.session_state[plan_key]
-                st.session_state[plan_key] = ""
+    if st.button("🔄 실적 갱신 (계획 → 실적)", 
+                 use_container_width=True, 
+                 help="이번주 계획 내용을 실적 칸으로 옮기고 계획을 비웁니다.",
+                 on_click=renew_performance,
+                 args=(target_id, len(week_df))):
         st.success("✅ 계획이 실적으로 이동되었습니다. '저장하기'를 눌러야 최종 반영됩니다!")
-        st.rerun()
 
 with c3:
     current_edit_df = pd.DataFrame(updated_rows, columns=['주차ID', '이름', '프로젝트명', '실적', '차주 계획', '최종목표', '진척률(%)'])
