@@ -169,7 +169,7 @@ st.divider()
 full_df = load_data()
 
 # 1. 해당 주차 데이터가 있는지 확인
-week_df = full_df[full_df['주차ID'] == target_id].copy()
+week_df = full_df[full_df['주차ID'] == target_id].copy().reset_index(drop=True)
 
 # 2. 해당 주차 데이터가 없으면, '가장 최근에 저장된 데이터'를 가져와서 복사
 if week_df.empty:
@@ -177,7 +177,7 @@ if week_df.empty:
         latest_ids = full_df['주차ID'].unique()
         if len(latest_ids) > 0:
             last_id = latest_ids[-1]
-            week_df = full_df[full_df['주차ID'] == last_id].copy()
+            week_df = full_df[full_df['주차ID'] == last_id].copy().reset_index(drop=True)
             week_df['주차ID'] = target_id
     
     if week_df.empty:
@@ -191,9 +191,21 @@ if week_df.empty:
             '진척률(%)': ['0'] * len(TEAM_MEMBERS)
         })
 
+# 6. 실적 갱신 함수 (계획 -> 실적 이동)
+def renew_performance(t_id, team_count):
+    for i in range(team_count):
+        plan_key = f"pr_{t_id}_{i}"
+        result_key = f"l_{t_id}_{i}"
+        if plan_key in st.session_state:
+            # 계획 내용을 실적으로 이동
+            st.session_state[result_key] = st.session_state[plan_key]
+            # 계획 칸 비우기
+            st.session_state[plan_key] = ""
+
+# --- 데이터 표시 및 입력 영역 ---
 st.subheader(f"📊 {year}년 {month}월 {week} 실시간 현황")
 
-# 헤더 (슬림 비율 유지)
+# 헤더 (데스크톱 전용)
 st.markdown('<div class="desktop-header">', unsafe_allow_html=True)
 header_cols = st.columns([0.7, 2, 2.5, 2.5, 2.5, 0.6])
 headers = ["이름", "프로젝트명", "실적", "차주 계획", "최종 목표", "진척(%)"]
@@ -205,80 +217,52 @@ st.markdown('</div>', unsafe_allow_html=True)
 updated_rows = []
 for i, row in week_df.iterrows():
     with st.container(border=True):
-        # 팀원 이름 강조
         st.markdown(f"### 👤 {row['이름']}")
         cols = st.columns([0.7, 2, 2.5, 2.5, 2.5, 0.6])
         
-        # 세션 상태 키 정의
-        n_key = f"n_{target_id}_{i}"
-        p_key = f"p_{target_id}_{i}"
-        l_key = f"l_{target_id}_{i}"
-        pr_key = f"pr_{target_id}_{i}"
-        g_key = f"g_{target_id}_{i}"
-        r_key = f"r_{target_id}_{i}"
+        # 키 정의
+        k = {"n": f"n_{target_id}_{i}", "p": f"p_{target_id}_{i}", "l": f"l_{target_id}_{i}", 
+             "pr": f"pr_{target_id}_{i}", "g": f"g_{target_id}_{i}", "r": f"r_{target_id}_{i}"}
         
-        # 세션 상태 초기화 (값이 없을 경우만)
-        if n_key not in st.session_state: st.session_state[n_key] = str(row['이름'])
-        if p_key not in st.session_state: st.session_state[p_key] = str(row['프로젝트명'])
-        if l_key not in st.session_state: st.session_state[l_key] = str(row['실적'])
-        if pr_key not in st.session_state: st.session_state[pr_key] = str(row['차주 계획'])
-        if g_key not in st.session_state: st.session_state[g_key] = str(row['최종목표'])
-        if r_key not in st.session_state: st.session_state[r_key] = str(row['진척률(%)'])
+        # 초기값 설정 (최초 1회)
+        if k["n"] not in st.session_state: st.session_state[k["n"]] = str(row['이름'])
+        if k["p"] not in st.session_state: st.session_state[k["p"]] = str(row['프로젝트명'])
+        if k["l"] not in st.session_state: st.session_state[k["l"]] = str(row['실적'])
+        if k["pr"] not in st.session_state: st.session_state[k["pr"]] = str(row['차주 계획'])
+        if k["g"] not in st.session_state: st.session_state[k["g"]] = str(row['최종목표'])
+        if k["r"] not in st.session_state: st.session_state[k["r"]] = str(row['진척률(%)'])
 
-        # 위젯 렌더링 (value 대신 key를 사용하여 세션 상태와 직접 연동)
-        name = cols[0].text_input("이름", key=n_key)
-        proj = cols[1].text_area("프로젝트명", key=p_key, height=100)
-        last = cols[2].text_area("실적", key=l_key, height=100)
-        prog = cols[3].text_area("차주 계획", key=pr_key, height=100)
-        goal = cols[4].text_area("최종 목표", key=g_key, height=100)
-        rate = cols[5].text_input("진척(%)", key=r_key)
+        # 입력 위젯
+        name = cols[0].text_input("이름", key=k["n"], label_visibility="collapsed")
+        proj = cols[1].text_area("프로젝트명", key=k["p"], height=100, label_visibility="collapsed")
+        last = cols[2].text_area("실적", key=k["l"], height=100, label_visibility="collapsed")
+        prog = cols[3].text_area("차주 계획", key=k["pr"], height=100, label_visibility="collapsed")
+        goal = cols[4].text_area("최종 목표", key=k["g"], height=100, label_visibility="collapsed")
+        rate = cols[5].text_input("진척(%)", key=k["r"], label_visibility="collapsed")
         
         updated_rows.append([target_id, name, proj, last, prog, goal, rate])
 
-# 6. 실적 갱신 함수 (계획 -> 실적 이동)
-def renew_performance(t_id, num_rows):
-    for i in range(num_rows):
-        plan_key = f"pr_{t_id}_{i}"
-        result_key = f"l_{t_id}_{i}"
-        if plan_key in st.session_state:
-            st.session_state[result_key] = st.session_state[plan_key]
-            st.session_state[plan_key] = ""
-
-# 버튼 레이아웃
+# 하단 버튼 영역
 st.write("")
 c1, c2, c3 = st.columns(3)
 
 with c1:
     if st.button("💾 변경사항 저장하기", use_container_width=True):
-        new_week_df = pd.DataFrame(updated_rows, columns=['주차ID', '이름', '프로젝트명', '실적', '차주 계획', '최종목표', '진척률(%)'])
-        
-        # 최신 데이터를 다시 불러와서 다른 주차 데이터가 유실되지 않도록 병합
-        fresh_full_df = load_data()
-        if not fresh_full_df.empty:
-            other_weeks_df = fresh_full_df[fresh_full_df['주차ID'] != target_id]
-            final_df = pd.concat([other_weeks_df, new_week_df], ignore_index=True)
-        else:
-            final_df = new_week_df
-            
+        new_df = pd.DataFrame(updated_rows, columns=['주차ID', '이름', '프로젝트명', '실적', '차주 계획', '최종목표', '진척률(%)'])
+        full_data = load_data()
+        final_df = pd.concat([full_data[full_data['주차ID'] != target_id], new_df], ignore_index=True)
         if save_data(final_df):
-            st.success(f"✅ {target_id} 데이터가 성공적으로 저장되었습니다!")
-            st.cache_data.clear() # 캐시 강제 삭제
+            st.success("✅ 저장되었습니다!")
+            st.cache_data.clear()
             st.rerun()
 
 with c2:
-    if st.button("🔄 실적 갱신 (계획 → 실적)", 
-                 use_container_width=True, 
-                 help="이번주 계획 내용을 실적 칸으로 옮기고 계획을 비웁니다.",
-                 on_click=renew_performance,
-                 args=(target_id, len(week_df))):
-        st.success("✅ 계획이 실적으로 이동되었습니다. '저장하기'를 눌러야 최종 반영됩니다!")
+    st.button("🔄 실적 갱신 (계획 → 실적)", 
+              use_container_width=True, 
+              on_click=renew_performance, 
+              args=(target_id, len(week_df)))
 
 with c3:
-    current_edit_df = pd.DataFrame(updated_rows, columns=['주차ID', '이름', '프로젝트명', '실적', '차주 계획', '최종목표', '진척률(%)'])
-    # 이미지 저장용 컬럼명 변경
-    img_df = current_edit_df.rename(columns={
-        '최종목표': '최종 목표',
-        '진척률(%)': '진척(%)'
-    })
-    img_buf = df_to_image(img_df)
-    st.download_button("🖼️ 이미지 파일 저장 (공유용)", data=img_buf, file_name=f"Project_{target_id}.png", mime="image/png", use_container_width=True)
+    current_df = pd.DataFrame(updated_rows, columns=['주차ID', '이름', '프로젝트명', '실적', '차주 계획', '최종목표', '진척률(%)'])
+    img_buf = df_to_image(current_df.rename(columns={'최종목표': '최종 목표', '진척률(%)': '진척(%)'}))
+    st.download_button("🖼️ 이미지 파일 저장", data=img_buf, file_name=f"Project_{target_id}.png", mime="image/png", use_container_width=True)
