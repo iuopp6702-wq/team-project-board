@@ -21,7 +21,7 @@ def load_data():
         df = pd.read_csv(url)
         # 컬럼명 매핑 (구 시트 데이터 호환성 유지)
         df = df.rename(columns={'지난주': '실적', '진척상황': '차주 계획'})
-        return df
+        return df.fillna("")
     except Exception:
         return pd.DataFrame(columns=['주차ID', '이름', '프로젝트명', '실적', '차주 계획', '최종목표', '진척률(%)'])
 
@@ -233,12 +233,12 @@ for i, row in week_df.iterrows():
         if k["r"] not in st.session_state: st.session_state[k["r"]] = str(row['진척률(%)'])
 
         # 입력 위젯
-        name = cols[0].text_input("이름", key=k["n"], label_visibility="collapsed")
-        proj = cols[1].text_area("프로젝트명", key=k["p"], height=100, label_visibility="collapsed")
-        last = cols[2].text_area("실적", key=k["l"], height=100, label_visibility="collapsed")
-        prog = cols[3].text_area("차주 계획", key=k["pr"], height=100, label_visibility="collapsed")
-        goal = cols[4].text_area("최종 목표", key=k["g"], height=100, label_visibility="collapsed")
-        rate = cols[5].text_input("진척(%)", key=k["r"], label_visibility="collapsed")
+        name = cols[0].text_input("이름", key=k["n"])
+        proj = cols[1].text_area("프로젝트명", key=k["p"], height=100)
+        last = cols[2].text_area("실적", key=k["l"], height=100)
+        prog = cols[3].text_area("차주 계획", key=k["pr"], height=100)
+        goal = cols[4].text_area("최종 목표", key=k["g"], height=100)
+        rate = cols[5].text_input("진척(%)", key=k["r"])
         
         updated_rows.append([target_id, name, proj, last, prog, goal, rate])
 
