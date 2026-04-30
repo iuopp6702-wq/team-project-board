@@ -19,14 +19,18 @@ def load_data():
     try:
         url = f"{CSV_URL}&cache_bust={datetime.datetime.now().timestamp()}"
         df = pd.read_csv(url)
+        # 컬럼명 매핑 (구 시트 데이터 호환성 유지)
+        df = df.rename(columns={'지난주': '실적', '진척상황': '차주 계획'})
         return df
     except Exception:
-        return pd.DataFrame(columns=['주차ID', '이름', '프로젝트명', '지난주', '진척상황', '최종목표', '진척률(%)'])
+        return pd.DataFrame(columns=['주차ID', '이름', '프로젝트명', '실적', '차주 계획', '최종목표', '진척률(%)'])
 
 # 3. 데이터 저장 함수
 def save_data(df):
     try:
-        data_json = df.to_json(orient='records', force_ascii=False)
+        # 저장 시에는 구 시트 컬럼명으로 다시 변경하여 저장 (앱스 스크립트/시트 구조 유지)
+        save_df = df.rename(columns={'실적': '지난주', '차주 계획': '진척상황'})
+        data_json = save_df.to_json(orient='records', force_ascii=False)
         response = requests.post(SCRIPT_URL, data=data_json, headers={'Content-Type': 'application/json'})
         return response.status_code == 200
     except Exception as e:
@@ -89,35 +93,64 @@ st.markdown("""
 
 st.title("🚀 음료생산기술팀 AI프로젝트 진행현황")
 
-# --- 주차 기억 기능 (URL 파라미터 활용) ---
+# --- 주차 선택 로직 (세션 상태 및 URL 동기화) ---
 now = datetime.date.today()
 params = st.query_params
 
-# 초기 인덱스 설정
-def_year_idx = 1 # 올해
-def_month_idx = now.month - 1
-def_week_idx = 0
+# 1. 초기값 결정 (URL -> 세션 -> 기본값 순)
+if "year" not in st.session_state:
+    if "year" in params:
+        try: st.session_state.year = int(params["year"])
+        except: st.session_state.year = now.year
+    else:
+        st.session_state.year = now.year
 
-# URL에 저장된 값이 있으면 해당 인덱스로 변경
-if "year" in params:
-    try: def_year_idx = list(range(now.year-1, now.year+2)).index(int(params["year"]))
-    except: pass
-if "month" in params:
-    try: def_month_idx = int(params["month"]) - 1
-    except: pass
-if "week" in params:
-    try: def_week_idx = [f"{i}주차" for i in range(1, 6)].index(params["week"])
-    except: pass
+if "month" not in st.session_state:
+    if "month" in params:
+        try: st.session_state.month = int(params["month"])
+        except: st.session_state.month = now.month
+    else:
+        st.session_state.month = now.month
 
-# 날짜 선택 UI
+if "week" not in st.session_state:
+    if "week" in params:
+        st.session_state.week = params["week"]
+    else:
+        st.session_state.week = "1주차"
+
+# 2. 날짜 선택 UI
 d_col1, d_col2, d_col3, d_col4 = st.columns([1, 1, 1, 2])
-with d_col1: year = st.selectbox("📅 년도", range(now.year-1, now.year+2), index=def_year_idx)
-with d_col2: month = st.selectbox("📆 월", range(1, 13), index=def_month_idx)
-with d_col3: week = st.selectbox("📅 주차", [f"{i}주차" for i in range(1, 6)], index=def_week_idx)
-with d_col4: st.markdown(f"<div style='text-align: right; padding-top: 35px; color: gray;'>오늘: {now.strftime('%Y-%m-%d')}</div>", unsafe_allow_html=True)
 
-# 선택 값이 바뀔 때마다 URL 업데이트
-st.query_params.update(year=year, month=month, week=week)
+with d_col1:
+    year_options = list(range(now.year-1, now.year+2))
+    try: y_idx = year_options.index(st.session_state.year)
+    except: y_idx = 1
+    year = st.selectbox("📅 년도", year_options, index=y_idx, key="year_select")
+
+with d_col2:
+    month_options = list(range(1, 13))
+    try: m_idx = month_options.index(st.session_state.month)
+    except: m_idx = now.month - 1
+    month = st.selectbox("📆 월", month_options, index=m_idx, key="month_select")
+
+with d_col3:
+    week_options = [f"{i}주차" for i in range(1, 6)]
+    try: w_idx = week_options.index(st.session_state.week)
+    except: w_idx = 0
+    week = st.selectbox("📅 주차", week_options, index=w_idx, key="week_select")
+
+with d_col4:
+    st.markdown(f"<div style='text-align: right; padding-top: 35px; color: gray;'>오늘: {now.strftime('%Y-%m-%d')}</div>", unsafe_allow_html=True)
+
+# 3. 선택된 값을 세션 및 URL에 업데이트
+if (st.session_state.year != year or 
+    st.session_state.month != month or 
+    st.session_state.week != week):
+    st.session_state.year = year
+    st.session_state.month = month
+    st.session_state.week = week
+    st.query_params.update(year=year, month=month, week=week)
+    st.rerun()
 
 target_id = f"{year}-{month}-{week}"
 
@@ -143,8 +176,8 @@ if week_df.empty:
             '주차ID': [target_id] * len(TEAM_MEMBERS),
             '이름': TEAM_MEMBERS,
             '프로젝트명': ['미입력'] * len(TEAM_MEMBERS),
-            '지난주': ['미입력'] * len(TEAM_MEMBERS),
-            '진척상황': ['미입력'] * len(TEAM_MEMBERS),
+            '실적': ['미입력'] * len(TEAM_MEMBERS),
+            '차주 계획': ['미입력'] * len(TEAM_MEMBERS),
             '최종목표': ['미입력'] * len(TEAM_MEMBERS),
             '진척률(%)': ['0'] * len(TEAM_MEMBERS)
         })
@@ -154,7 +187,7 @@ st.subheader(f"📊 {year}년 {month}월 {week} 실시간 현황")
 # 헤더 (슬림 비율 유지)
 st.markdown('<div class="desktop-header">', unsafe_allow_html=True)
 header_cols = st.columns([0.7, 2, 2.5, 2.5, 2.5, 0.6])
-headers = ["이름", "프로젝트명", "지난주 성과", "이번주 계획", "최종 목표", "진척(%)"]
+headers = ["이름", "프로젝트명", "실적", "차주 계획", "최종 목표", "진척(%)"]
 for i, h in enumerate(headers):
     header_cols[i].markdown(f"**{h}**")
 st.markdown('</div>', unsafe_allow_html=True)
@@ -167,8 +200,8 @@ for i, row in week_df.iterrows():
         
         name = cols[0].text_input(f"n{i}", value=str(row['이름']), key=f"n_{target_id}_{i}")
         proj = cols[1].text_area(f"p{i}", value=str(row['프로젝트명']), key=f"p_{target_id}_{i}", height=100)
-        last = cols[2].text_area(f"l{i}", value=str(row['지난주']), key=f"l_{target_id}_{i}", height=100)
-        prog = cols[3].text_area(f"pr{i}", value=str(row['진척상황']), key=f"pr_{target_id}_{i}", height=100)
+        last = cols[2].text_area(f"l{i}", value=str(row['실적']), key=f"l_{target_id}_{i}", height=100)
+        prog = cols[3].text_area(f"pr{i}", value=str(row['차주 계획']), key=f"pr_{target_id}_{i}", height=100)
         goal = cols[4].text_area(f"g{i}", value=str(row['최종목표']), key=f"g_{target_id}_{i}", height=100)
         rate = cols[5].text_input(f"r{i}", value=str(row['진척률(%)']), key=f"r_{target_id}_{i}")
         
@@ -180,15 +213,27 @@ c1, c2 = st.columns(2)
 
 with c1:
     if st.button("💾 변경사항 저장하기", use_container_width=True):
-        new_week_df = pd.DataFrame(updated_rows, columns=['주차ID', '이름', '프로젝트명', '지난주', '진척상황', '최종목표', '진척률(%)'])
-        other_weeks_df = full_df[full_df['주차ID'] != target_id]
-        final_df = pd.concat([other_weeks_df, new_week_df], ignore_index=True)
+        new_week_df = pd.DataFrame(updated_rows, columns=['주차ID', '이름', '프로젝트명', '실적', '차주 계획', '최종목표', '진척률(%)'])
         
+        # 최신 데이터를 다시 불러와서 다른 주차 데이터가 유실되지 않도록 병합
+        fresh_full_df = load_data()
+        if not fresh_full_df.empty:
+            other_weeks_df = fresh_full_df[fresh_full_df['주차ID'] != target_id]
+            final_df = pd.concat([other_weeks_df, new_week_df], ignore_index=True)
+        else:
+            final_df = new_week_df
+            
         if save_data(final_df):
-            st.success(f"✅ {target_id} 데이터가 저장되었습니다!")
+            st.success(f"✅ {target_id} 데이터가 성공적으로 저장되었습니다!")
+            st.cache_data.clear() # 캐시 강제 삭제
             st.rerun()
 
 with c2:
-    current_edit_df = pd.DataFrame(updated_rows, columns=['주차ID', '이름', '프로젝트명', '지난주', '진척상황', '최종목표', '진척률(%)'])
-    img_buf = df_to_image(current_edit_df)
+    current_edit_df = pd.DataFrame(updated_rows, columns=['주차ID', '이름', '프로젝트명', '실적', '차주 계획', '최종목표', '진척률(%)'])
+    # 이미지 저장용 컬럼명 변경
+    img_df = current_edit_df.rename(columns={
+        '최종목표': '최종 목표',
+        '진척률(%)': '진척(%)'
+    })
+    img_buf = df_to_image(img_df)
     st.download_button("🖼️ 이미지 파일 저장 (공유용)", data=img_buf, file_name=f"Project_{target_id}.png", mime="image/png", use_container_width=True)
