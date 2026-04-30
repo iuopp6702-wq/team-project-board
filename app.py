@@ -201,12 +201,12 @@ for i, row in week_df.iterrows():
     with st.container(border=True):
         cols = st.columns([0.7, 2, 2.5, 2.5, 2.5, 0.6])
         
-        name = cols[0].text_input(f"n{i}", value=str(row['이름']), key=f"n_{target_id}_{i}")
-        proj = cols[1].text_area(f"p{i}", value=str(row['프로젝트명']), key=f"p_{target_id}_{i}", height=100)
-        last = cols[2].text_area(f"l{i}", value=str(row['실적']), key=f"l_{target_id}_{i}", height=100)
-        prog = cols[3].text_area(f"pr{i}", value=str(row['차주 계획']), key=f"pr_{target_id}_{i}", height=100)
-        goal = cols[4].text_area(f"g{i}", value=str(row['최종목표']), key=f"g_{target_id}_{i}", height=100)
-        rate = cols[5].text_input(f"r{i}", value=str(row['진척률(%)']), key=f"r_{target_id}_{i}")
+        name = cols[0].text_input(f"n{i}", value=str(row['이름']), key=f"n_{target_id}_{i}", label_visibility="collapsed")
+        proj = cols[1].text_area(f"p{i}", value=str(row['프로젝트명']), key=f"p_{target_id}_{i}", height=100, label_visibility="collapsed")
+        last = cols[2].text_area(f"l{i}", value=str(row['실적']), key=f"l_{target_id}_{i}", height=100, label_visibility="collapsed")
+        prog = cols[3].text_area(f"pr{i}", value=str(row['차주 계획']), key=f"pr_{target_id}_{i}", height=100, label_visibility="collapsed")
+        goal = cols[4].text_area(f"g{i}", value=str(row['최종목표']), key=f"g_{target_id}_{i}", height=100, label_visibility="collapsed")
+        rate = cols[5].text_input(f"r{i}", value=str(row['진척률(%)']), key=f"r_{target_id}_{i}", label_visibility="collapsed")
         
         updated_rows.append([target_id, name, proj, last, prog, goal, rate])
 
