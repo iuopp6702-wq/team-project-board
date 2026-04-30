@@ -205,17 +205,33 @@ st.markdown('</div>', unsafe_allow_html=True)
 updated_rows = []
 for i, row in week_df.iterrows():
     with st.container(border=True):
-        # 팀원 이름 강조 (모바일/데스크톱 공통)
+        # 팀원 이름 강조
         st.markdown(f"### 👤 {row['이름']}")
         cols = st.columns([0.7, 2, 2.5, 2.5, 2.5, 0.6])
         
-        # 라벨 표시 (CSS로 데스크톱에서 숨김 처리됨)
-        name = cols[0].text_input("이름", value=str(row['이름']), key=f"n_{target_id}_{i}")
-        proj = cols[1].text_area("프로젝트명", value=str(row['프로젝트명']), key=f"p_{target_id}_{i}", height=100)
-        last = cols[2].text_area("실적", value=str(row['실적']), key=f"l_{target_id}_{i}", height=100)
-        prog = cols[3].text_area("차주 계획", value=str(row['차주 계획']), key=f"pr_{target_id}_{i}", height=100)
-        goal = cols[4].text_area("최종 목표", value=str(row['최종목표']), key=f"g_{target_id}_{i}", height=100)
-        rate = cols[5].text_input("진척(%)", value=str(row['진척률(%)']), key=f"r_{target_id}_{i}")
+        # 세션 상태 키 정의
+        n_key = f"n_{target_id}_{i}"
+        p_key = f"p_{target_id}_{i}"
+        l_key = f"l_{target_id}_{i}"
+        pr_key = f"pr_{target_id}_{i}"
+        g_key = f"g_{target_id}_{i}"
+        r_key = f"r_{target_id}_{i}"
+        
+        # 세션 상태 초기화 (값이 없을 경우만)
+        if n_key not in st.session_state: st.session_state[n_key] = str(row['이름'])
+        if p_key not in st.session_state: st.session_state[p_key] = str(row['프로젝트명'])
+        if l_key not in st.session_state: st.session_state[l_key] = str(row['실적'])
+        if pr_key not in st.session_state: st.session_state[pr_key] = str(row['차주 계획'])
+        if g_key not in st.session_state: st.session_state[g_key] = str(row['최종목표'])
+        if r_key not in st.session_state: st.session_state[r_key] = str(row['진척률(%)'])
+
+        # 위젯 렌더링 (value 대신 key를 사용하여 세션 상태와 직접 연동)
+        name = cols[0].text_input("이름", key=n_key)
+        proj = cols[1].text_area("프로젝트명", key=p_key, height=100)
+        last = cols[2].text_area("실적", key=l_key, height=100)
+        prog = cols[3].text_area("차주 계획", key=pr_key, height=100)
+        goal = cols[4].text_area("최종 목표", key=g_key, height=100)
+        rate = cols[5].text_input("진척(%)", key=r_key)
         
         updated_rows.append([target_id, name, proj, last, prog, goal, rate])
 
