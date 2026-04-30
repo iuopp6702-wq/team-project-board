@@ -116,7 +116,10 @@ if "week" not in st.session_state:
     if "week" in params:
         st.session_state.week = params["week"]
     else:
-        st.session_state.week = "1주차"
+        # 오늘 날짜를 기준으로 주차 계산 (7일 단위)
+        current_week_num = (now.day - 1) // 7 + 1
+        if current_week_num > 5: current_week_num = 5
+        st.session_state.week = f"{current_week_num}주차"
 
 # 2. 날짜 선택 UI
 d_col1, d_col2, d_col3, d_col4 = st.columns([1, 1, 1, 2])
