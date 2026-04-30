@@ -219,9 +219,9 @@ for i, row in week_df.iterrows():
         
         updated_rows.append([target_id, name, proj, last, prog, goal, rate])
 
-# 저장 버튼
+# 버튼 레이아웃
 st.write("")
-c1, c2 = st.columns(2)
+c1, c2, c3 = st.columns(3)
 
 with c1:
     if st.button("💾 변경사항 저장하기", use_container_width=True):
@@ -241,6 +241,17 @@ with c1:
             st.rerun()
 
 with c2:
+    if st.button("🔄 실적 갱신 (계획 → 실적)", use_container_width=True, help="이번주 계획 내용을 실적 칸으로 옮기고 계획을 비웁니다."):
+        for i in range(len(TEAM_MEMBERS)):
+            plan_key = f"pr_{target_id}_{i}"
+            result_key = f"l_{target_id}_{i}"
+            if plan_key in st.session_state and result_key in st.session_state:
+                st.session_state[result_key] = st.session_state[plan_key]
+                st.session_state[plan_key] = ""
+        st.success("✅ 계획이 실적으로 이동되었습니다. '저장하기'를 눌러야 최종 반영됩니다!")
+        st.rerun()
+
+with c3:
     current_edit_df = pd.DataFrame(updated_rows, columns=['주차ID', '이름', '프로젝트명', '실적', '차주 계획', '최종목표', '진척률(%)'])
     # 이미지 저장용 컬럼명 변경
     img_df = current_edit_df.rename(columns={
